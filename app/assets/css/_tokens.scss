@@ -1,0 +1,45 @@
+:root {
+  /* Purple */
+  --c-purple:          #602B7A;
+  --c-purple-light:    #63289514;
+  --c-purple-text:     #632895;
+
+  /* Red */
+  --c-red:             #9F2323;
+  --c-red-light:       #9F232314;
+
+  /* Yellow */
+  --c-yellow:          #FFD749;
+  --c-yellow-light:    #FFD74926;
+  --c-yellow-text:     #7A6100;
+
+  /* Green */
+  --c-green:           #56B835;
+  --c-green-light:     #56B8351A;
+  --c-green-text:      #2E6E16;
+
+  /* Text */
+  --c-text-dark:       #333333;
+  --c-text-gray:       #00000073;
+  --c-text-white-dim:  #FFFFFFA6;
+
+  /* Special */
+  --c-blue-stripe:     #C6D4FF40;
+  --c-circle-bg:       #FFFFFF0D;
+  --c-black:           #000000;
+  --c-white:           #FFFFFF;
+
+  /* Background */
+  --c-bg:              #E8EAF6;
+  --c-bg-card:         #FFFFFF;
+
+  /* Fonts */
+  --font-main:         'Inter', sans-serif;
+  --font-heading:      'Montserrat', sans-serif;
+
+  /* Radius */
+  --radius-sm:         8px;
+  --radius-md:         16px;
+  --radius-lg:         24px;
+  --radius-full:       999px;
+}
