@@ -3,55 +3,106 @@ import calendarIcon from '~/assets/icons/PerpleCalendar.svg'
 
 definePageMeta({ layout: 'student' })
 
-// TODO: заменить на useFetch(`/api/student/homework/${route.params.id}`)
-const data = {
-  id: 3,
-  title: 'Frontend разработка — Создание веб-страницы с HTML/CSS',
-  subject: 'Frontend разработка',
-  status: 'review',
-  deadline: '28 апреля 2026',
-  points: 100,
-  tags: ['HTML / CSS'],
-  description: 'Разработать адаптивную landing page используя HTML5 и CSS3. Страница должна корректно отображаться на всех популярных разрешениях экрана — от 320px до 1920px.',
-  steps: [
-    { n: 1, text: 'Создайте HTML-структуру страницы с семантическими тегами:', codes: ['<header>', '<main>', '<footer>'] },
-    { n: 2, text: 'Реализуйте адаптивный макет с использованием Flexbox и/или CSS Grid.' },
-    { n: 3, text: 'Добавьте медиа-запросы для мобильных (до 768px), планшетных (768–1024px) и десктопных (от 1024px) экранов.' },
-    { n: 4, text: 'Оформите стили в отдельном файле', codes: ['styles.css'], suffix: ', не используйте inline-стили.' },
-    { n: 5, text: 'Проверьте валидность HTML через validator.w3.org и CSS через jigsaw.w3.org.' },
-    { n: 6, text: 'Загрузите проект на GitHub Pages и прикрепите ссылку на живую страницу.' }
-  ],
-  answer: {
-    statusLabel: 'Отправлено на проверку',
-    grading: 'Ожидает проверки',
-    deadline: 'Вторник, 28 апреля 2026, 23:59',
-    timeLeft: '2 дн. 13 час.',
-    lastChange: 'Воскресенье, 26 апреля 2026, 17:42',
-    file: { name: 'landing_ivanov.zip', date: '26 апреля 2026, 17:42' }
-  },
-  comments: [
-    {
-      id: 1, initials: 'ЕП', author: 'Елена Петровна', role: 'teacher', roleLabel: 'Преподаватель',
-      date: '21 апр., 14:20',
-      text: 'Иван, обратите внимание — в вашем коде не хватает тега <meta name="viewport">. Без него мобильная версия будет некорректно масштабироваться. Пожалуйста, исправьте перед финальной сдачей.'
-    },
-    {
-      id: 2, initials: 'ИИ', author: 'Иван Иванов', role: 'student', roleLabel: 'Ученик',
-      date: '21 апр., 15:04',
-      text: 'Елена Петровна, спасибо! Я добавил viewport meta и проверил на реальном устройстве — всё отображается корректно. Также исправил несколько ошибок в CSS валидаторе.'
-    },
-    {
-      id: 3, initials: 'ЕП', author: 'Елена Петровна', role: 'teacher', roleLabel: 'Преподаватель',
-      date: '22 апр., 10:15',
-      text: 'Работу приняла, проверяю. Заметила, что Grid-раскладка применена только к одной секции — остальные через Flexbox. Это допустимо, но было бы хорошо прокомментировать в коде, почему именно такой выбор. Оценку выставлю сегодня до вечера.'
-    },
-    {
-      id: 4, initials: 'ИИ', author: 'Иван Иванов', role: 'student', roleLabel: 'Ученик',
-      date: '22 апр., 11:30',
-      text: 'Понял, добавил комментарии в CSS-файле с пояснением. Grid использовал для галереи (равные колонки), Flexbox — для nav и footer. Жду вашей оценки!'
-    }
-  ]
+const route = useRoute()
+
+type Step = { n: number; text: string; codes?: string[]; suffix?: string }
+type Comment = { id: number; initials: string; author: string; role: string; roleLabel: string; date: string; text: string }
+type Homework = {
+  id: number; title: string; subject: string; status: string
+  deadline: string; points: number; tags: string[]; description: string
+  steps: Step[]
+  answer: { statusLabel: string; grading: string; deadline: string; timeLeft: string; lastChange: string; file: { name: string; date: string } | null }
+  comments: Comment[]
 }
+
+// TODO: заменить на useFetch(`/api/student/homework/${route.params.id}`)
+const homeworks: Record<number, Homework> = {
+  3: {
+    id: 3,
+    title: 'Frontend разработка — Создание веб-страницы с HTML/CSS',
+    subject: 'Frontend разработка',
+    status: 'review',
+    deadline: '28 апреля 2026',
+    points: 100,
+    tags: ['HTML / CSS'],
+    description: 'Разработать адаптивную landing page используя HTML5 и CSS3. Страница должна корректно отображаться на всех популярных разрешениях экрана — от 320px до 1920px.',
+    steps: [
+      { n: 1, text: 'Создайте HTML-структуру страницы с семантическими тегами:', codes: ['<header>', '<main>', '<footer>'] },
+      { n: 2, text: 'Реализуйте адаптивный макет с использованием Flexbox и/или CSS Grid.' },
+      { n: 3, text: 'Добавьте медиа-запросы для мобильных (до 768px), планшетных (768–1024px) и десктопных (от 1024px) экранов.' },
+      { n: 4, text: 'Оформите стили в отдельном файле', codes: ['styles.css'], suffix: ', не используйте inline-стили.' },
+      { n: 5, text: 'Проверьте валидность HTML через validator.w3.org и CSS через jigsaw.w3.org.' },
+      { n: 6, text: 'Загрузите проект на GitHub Pages и прикрепите ссылку на живую страницу.' }
+    ],
+    answer: {
+      statusLabel: 'Отправлено на проверку',
+      grading: 'Ожидает проверки',
+      deadline: 'Вторник, 28 апреля 2026, 23:59',
+      timeLeft: '2 дн. 13 час.',
+      lastChange: 'Воскресенье, 26 апреля 2026, 17:42',
+      file: { name: 'landing_ivanov.zip', date: '26 апреля 2026, 17:42' }
+    },
+    comments: [
+      {
+        id: 1, initials: 'ЕП', author: 'Елена Петровна', role: 'teacher', roleLabel: 'Преподаватель',
+        date: '21 апр., 14:20',
+        text: 'Иван, обратите внимание — в вашем коде не хватает тега <meta name="viewport">. Без него мобильная версия будет некорректно масштабироваться. Пожалуйста, исправьте перед финальной сдачей.'
+      },
+      {
+        id: 2, initials: 'ИИ', author: 'Иван Иванов', role: 'student', roleLabel: 'Ученик',
+        date: '21 апр., 15:04',
+        text: 'Елена Петровна, спасибо! Я добавил viewport meta и проверил на реальном устройстве — всё отображается корректно. Также исправил несколько ошибок в CSS валидаторе.'
+      },
+      {
+        id: 3, initials: 'ЕП', author: 'Елена Петровна', role: 'teacher', roleLabel: 'Преподаватель',
+        date: '22 апр., 10:15',
+        text: 'Работу приняла, проверяю. Заметила, что Grid-раскладка применена только к одной секции — остальные через Flexbox. Это допустимо, но было бы хорошо прокомментировать в коде, почему именно такой выбор. Оценку выставлю сегодня до вечера.'
+      },
+      {
+        id: 4, initials: 'ИИ', author: 'Иван Иванов', role: 'student', roleLabel: 'Ученик',
+        date: '22 апр., 11:30',
+        text: 'Понял, добавил комментарии в CSS-файле с пояснением. Grid использовал для галереи (равные колонки), Flexbox — для nav и footer. Жду вашей оценки!'
+      }
+    ]
+  },
+  12: {
+    id: 12,
+    title: 'Frontend разработка — Лендинг на HTML&CSS',
+    subject: 'Frontend разработка',
+    status: 'pending',
+    deadline: '28 апреля 2026',
+    points: 100,
+    tags: ['HTML / CSS'],
+    description: 'Создать полноценную landing page для продукта или стартапа на выбор. Страница должна включать несколько секций, использовать CSS-переменные, анимации и адаптироваться под разные устройства — всё без использования CSS-фреймворков.',
+    steps: [
+      { n: 1, text: 'Придумайте тему лендинга (продукт, приложение, стартап) и нарисуйте примерную структуру на бумаге или в Figma.' },
+      { n: 2, text: 'Создайте HTML-разметку с семантическими тегами: секции', codes: ['<section>'], suffix: ' с id для навигации, шапка, хиро-блок, карточки, футер.' },
+      { n: 3, text: 'Оформите стили в отдельном', codes: ['style.css'], suffix: '. Используйте CSS-переменные (', codes: ['--primary-color', '--font-size-base'], suffix: ') для цветовой схемы и типографики.' },
+      { n: 4, text: 'Реализуйте адаптивную вёрстку через CSS Grid (для сетки карточек) и Flexbox (для навигации и footer). Минимум три breakpoint: 480px, 768px, 1024px.' },
+      { n: 5, text: 'Добавьте hover-эффекты на кнопки и карточки, плавный scroll к секциям через', codes: ['scroll-behavior: smooth'], suffix: '.' },
+      { n: 6, text: 'Проверьте HTML через validator.w3.org и CSS через jigsaw.w3.org — ошибок быть не должно.' },
+      { n: 7, text: 'Опубликуйте проект на GitHub Pages и прикрепите ссылку на живую страницу в поле ответа.' }
+    ],
+    answer: {
+      statusLabel: 'Ответ не загружен',
+      grading: '—',
+      deadline: 'Понедельник, 28 апреля 2026, 23:59',
+      timeLeft: '2 дн. 0 час.',
+      lastChange: '—',
+      file: null
+    },
+    comments: [
+      {
+        id: 1, initials: 'ЕП', author: 'Елена Петровна', role: 'teacher', roleLabel: 'Преподаватель',
+        date: '24 апр., 09:00',
+        text: 'Привет! Напоминаю, что дедлайн — 28 апреля. Тему лендинга выбирайте любую, главное — аккуратная семантика и рабочая адаптивность. Если возникнут вопросы по Grid или медиазапросам — пишите сюда.'
+      }
+    ]
+  }
+}
+
+const id   = Number(route.params.id)
+const data = homeworks[id] ?? homeworks[3]
 
 const statusMap: Record<string, { label: string; cls: string }> = {
   completed:  { label: 'Выполнено',   cls: 'hw-badge--green'  },
