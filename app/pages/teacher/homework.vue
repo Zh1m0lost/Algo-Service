@@ -363,4 +363,29 @@ function review(id: number) { /* TODO: navigate to review page */ }
     &:hover { opacity: 0.88; }
   }
 }
+
+@media (max-width: 900px) {
+  .hw-page { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .hw-form-card { padding: 20px; }
+
+  .hw-row--3 { grid-template-columns: 1fr 1fr; }
+
+  .hw-form-actions { flex-direction: column; gap: 10px; }
+
+  .hw-action-btn { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .hw-row--3 { grid-template-columns: 1fr; }
+
+  .hw-review-item {
+    flex-wrap: wrap;
+    gap: 10px;
+
+    &__btn { width: 100%; text-align: center; }
+  }
+}
 </style>

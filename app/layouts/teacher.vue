@@ -168,4 +168,48 @@ function logout() {
   margin: 0 auto;
   padding: 0 24px 40px;
 }
+
+@media (max-width: 768px) {
+  .t-header {
+    padding: 0 16px;
+    &__inner { height: 60px; }
+    &__logo img { height: 38px; }
+  }
+
+  .t-nav {
+    padding: 0 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+
+    &__inner {
+      gap: 4px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      padding: 10px 0;
+    }
+
+    &__link { font-size: 13px; }
+  }
+
+  .t-content { padding: 0 16px 32px; }
+}
+
+@media (max-width: 480px) {
+  .t-header {
+    &__user {
+      padding: 6px 10px;
+      gap: 0;
+      span { display: none; }
+    }
+  }
+
+  .t-nav__sep { display: none; }
+
+  .t-nav__inner { gap: 2px; }
+
+  .t-nav__link {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+}
 </style>

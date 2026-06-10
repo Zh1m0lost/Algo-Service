@@ -661,6 +661,7 @@ function sendComment() {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 16px;
 }
 
 .hw-modal {
@@ -741,5 +742,76 @@ function sendComment() {
     display: flex;
     gap: 12px;
   }
+}
+
+@media (max-width: 768px) {
+  .hw-card {
+    padding: 20px;
+
+    &__header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    &__title { font-size: 18px; }
+  }
+
+  .hw-actions {
+    flex-direction: column;
+    gap: 10px;
+
+    .hw-action-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .hw-chat__btns {
+    flex-wrap: wrap;
+    .hw-btn { flex: 1; min-width: 120px; }
+  }
+
+  .hw-modal {
+    padding: 24px 20px;
+    border-radius: var(--radius-md);
+
+    &__footer { flex-direction: column; }
+  }
+}
+
+@media (max-width: 480px) {
+  .hw-table {
+    display: block;
+
+    tbody { display: block; }
+
+    &__row {
+      display: block;
+      border-bottom: 1px solid #F0F0F0;
+      padding: 4px 0;
+    }
+
+    &__key {
+      display: block;
+      width: auto;
+      padding: 10px 0 2px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--c-text-gray);
+    }
+
+    &__val {
+      display: block;
+      padding: 0 0 10px;
+    }
+  }
+
+  .hw-msg {
+    &__date { margin-left: 0; font-size: 11px; }
+    &__header { gap: 4px; }
+  }
+
+  .hw-card__meta { gap: 8px; }
 }
 </style>

@@ -451,4 +451,45 @@ const groupOpen = ref(false)
     }
   }
 }
+
+@media (max-width: 768px) {
+  .jrn-header {
+    flex-wrap: wrap;
+    gap: 12px;
+
+    &__right { flex-wrap: wrap; }
+  }
+
+  /* Таблица — горизонтальный скролл */
+  .jrn-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .jrn-table {
+    min-width: 560px;
+
+    &__th { padding: 12px 14px; font-size: 13px; }
+    &__name { padding: 14px; font-size: 14px; }
+    &__cell { padding: 14px; min-width: 80px; }
+    &__points, &__avg { padding: 14px; }
+  }
+
+  .jrn-form-card { padding: 20px; }
+
+  .jrn-form__btns { flex-wrap: wrap; }
+
+  .jrn-form__btn { flex: 1; min-width: 120px; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .jrn-header__title { font-size: 18px; }
+
+  .jrn-export-btn span { display: none; }
+
+  .jrn-form {
+    flex-direction: column;
+    &__field, &__field--wide, &__field--sm { flex: none; width: 100%; }
+  }
+}
 </style>

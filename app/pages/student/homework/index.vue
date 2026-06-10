@@ -340,4 +340,33 @@ function btnClass(status: string) {
     &:hover { opacity: 0.88; }
   }
 }
+
+@media (max-width: 768px) {
+  .hw-stats { grid-template-columns: repeat(3, 1fr); }
+
+  .hw-item {
+    padding: 18px;
+
+    &__footer {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    &__footer .hw-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+@media (max-width: 580px) {
+  .hw-stats { grid-template-columns: 1fr; }
+
+  .hw-item {
+    &__top { flex-wrap: wrap; gap: 8px; }
+    &__title { font-size: 16px; }
+    &__meta { flex-wrap: wrap; gap: 6px; }
+  }
+}
 </style>

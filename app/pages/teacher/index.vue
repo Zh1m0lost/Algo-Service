@@ -504,4 +504,58 @@ const currentTasks = computed(() => data.tasks[activeTab.value])
     &:hover { opacity: 0.88; }
   }
 }
+
+@media (max-width: 768px) {
+  .td-hero {
+    flex-direction: column;
+    padding: 24px 20px;
+    gap: 20px;
+
+    &__title { font-size: 24px; }
+    &__sub { font-size: 14px; }
+
+    &__stats {
+      flex-direction: row;
+      width: 100%;
+    }
+
+    &__stat {
+      flex: 1;
+      padding: 12px 16px;
+      min-width: 0;
+    }
+
+    &__stat-label { white-space: normal; font-size: 11px; }
+  }
+
+  .td-quick { grid-template-columns: repeat(2, 1fr); }
+
+  .td-bottom { grid-template-columns: 1fr; }
+
+  .td-lesson {
+    flex-direction: column;
+    align-items: flex-start;
+
+    &__btns { width: 100%; }
+    .td-btn { flex: 1; justify-content: center; }
+  }
+}
+
+@media (max-width: 480px) {
+  .td-hero {
+    padding: 20px 16px;
+
+    &__title { font-size: 18px; }
+    &__circle { display: none; }
+    &__stat-num { font-size: 28px; }
+  }
+
+  .td-quick { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+  .td-quick-card {
+    padding: 20px 14px;
+    &__icon { width: 44px; height: 44px; font-size: 24px; }
+    &__title { font-size: 14px; }
+  }
+}
 </style>

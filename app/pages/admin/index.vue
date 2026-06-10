@@ -566,4 +566,59 @@ const data = {
     &:hover { text-decoration: underline; }
   }
 }
+
+@media (max-width: 768px) {
+  .adm-hero {
+    flex-direction: column;
+    padding: 24px 20px;
+    gap: 20px;
+
+    &__title { font-size: 24px; }
+    &__progress-wrap { max-width: 100%; }
+
+    &__stats {
+      flex-direction: row;
+      width: 100%;
+    }
+
+    &__stat {
+      flex: 1;
+      padding: 12px 16px;
+      min-width: 0;
+    }
+  }
+
+  .adm-stats { grid-template-columns: repeat(2, 1fr); }
+
+  .adm-quick { grid-template-columns: repeat(2, 1fr); }
+
+  .adm-bottom { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .adm-hero {
+    padding: 20px 16px;
+
+    &__title { font-size: 20px; }
+    &__circle { display: none; }
+    &__stat-num { font-size: 28px; }
+  }
+
+  .adm-stats { grid-template-columns: 1fr; }
+
+  .adm-stat-card__value { font-size: 26px; }
+
+  .adm-quick { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+  .adm-alert {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .adm-lesson {
+    flex-wrap: wrap;
+    &__time { width: 100%; padding-left: 18px; }
+  }
+}
 </style>

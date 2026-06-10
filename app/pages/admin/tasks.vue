@@ -352,4 +352,37 @@ const filtered = computed(() => {
   &--pink   { background: #FFE4E4;               color: #9F2323;              }
   &--green  { background: var(--c-green-light);  color: var(--c-green-text);  }
 }
+
+@media (max-width: 768px) {
+  .tk-card {
+    padding: 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+
+    &__head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    &__controls { width: 100%; justify-content: space-between; }
+  }
+
+  .tk-table {
+    min-width: 700px;
+
+    th { padding: 8px 10px; }
+
+    &__row td { padding: 12px 10px; font-size: 13px; }
+
+    &__task { max-width: 200px; }
+    &__comment { max-width: 160px; }
+  }
+}
+
+@media (max-width: 480px) {
+  .tk-table { min-width: 580px; }
+
+  .tk-card__title { font-size: 17px; }
+}
 </style>

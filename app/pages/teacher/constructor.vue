@@ -538,8 +538,32 @@ const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.va
   cursor: pointer;
   font-family: var(--font-main);
   transition: opacity 0.2s;
-  // TODO: POST /api/teacher/constructor/save
 
   &:hover { opacity: 0.88; }
+}
+
+@media (max-width: 768px) {
+  .con-editor { padding: 20px; }
+
+  .con-cols { grid-template-columns: 1fr; gap: 20px; }
+
+  .con-preview__cols { grid-template-columns: 1fr; gap: 20px; }
+
+  .con-preview__inner { padding: 20px; }
+
+  .con-name-wrap { width: 100%; box-sizing: border-box; }
+
+  .con-name-input { width: 100%; }
+
+  .con-footer { justify-content: stretch; }
+
+  .con-save-btn { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .con-item {
+    flex-wrap: wrap;
+    &__label { min-width: 100%; }
+  }
 }
 </style>

@@ -90,7 +90,7 @@ function shortage(price: number) {
           <span class="shop-history__count">{{ data.transactions.length }} операций</span>
         </div>
         <div class="shop-history__list">
-          <div v-for="tx in data.transactions" :key="tx.id" class="shop-tx">
+          <div v-for="tx in data.transactions.slice(0, 4)" :key="tx.id" class="shop-tx">
             <img
               :src="tx.type === 'purchase' ? cartIcon : checkIcon"
               alt=""
@@ -282,8 +282,8 @@ function shortage(price: number) {
     font-size: 12px;
     font-weight: 600;
 
-    &--green   { background: var(--c-green-light);  color: var(--c-green); }
-    &--yellow  { background: var(--c-yellow-light); color: var(--c-yellow-text); }
+    &--green   { background: rgba(86, 184, 53, 0.25); color: #ffffff; }
+    &--yellow  { background: var(--c-yellow-light); color: var(--c-yellow); }
     &--outline { border: 1.5px solid rgba(255,255,255,0.4); color: var(--c-white); }
   }
 }
@@ -621,5 +621,45 @@ function shortage(price: number) {
     font-weight: 700;
     color: var(--c-green);
   }
+}
+
+@media (max-width: 768px) {
+  .shop-top { grid-template-columns: 1fr; }
+
+  .shop-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .shop-merch__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .shop-history__list { gap: 8px; }
+}
+
+@media (max-width: 480px) {
+  .shop-balance {
+    padding: 20px;
+
+    &__num { font-size: 40px; }
+    &__star { font-size: 28px; }
+  }
+
+  .shop-grid { grid-template-columns: 1fr; }
+
+  .shop-product {
+    &__img { height: 100px; }
+    &__emoji { font-size: 46px; }
+  }
+
+  .shop-modal {
+    padding: 24px 20px;
+    border-radius: var(--radius-md);
+
+    &__footer { flex-direction: column; }
+    &__btn { height: 46px; }
+  }
+
+  .shop-tx__title { font-size: 12px; }
 }
 </style>

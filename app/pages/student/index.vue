@@ -669,4 +669,56 @@ const progressPercent = computed(() =>
     color: var(--c-text-gray);
   }
 }
+
+@media (max-width: 768px) {
+  .hero {
+    flex-direction: column;
+    padding: 24px 20px;
+    gap: 20px;
+
+    &__title { font-size: 22px; }
+    &__subtitle { margin-bottom: 16px; }
+    &__progress { max-width: 100%; }
+
+    &__right {
+      flex-direction: row;
+      width: 100%;
+    }
+
+    &__stat { flex: 1; }
+  }
+
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 20px 16px;
+
+    &__title { font-size: 18px; }
+    &__subtitle { font-size: 13px; }
+    &__circle { display: none; }
+
+    &__stat { padding: 10px 12px; }
+    &__stat-num { font-size: 24px; }
+    &__stat-label { font-size: 11px; }
+  }
+
+  .quick-actions { gap: 8px; }
+
+  .quick-action {
+    padding: 12px 6px;
+    font-size: 11px;
+    img { width: 24px; height: 24px; }
+  }
+
+  .lesson-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .btn-primary { width: 100%; }
+  .btn-start   { width: 100%; }
+}
 </style>

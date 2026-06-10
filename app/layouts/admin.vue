@@ -164,4 +164,43 @@ function logout() {
   margin: 0 auto;
   padding: 0 24px 40px;
 }
+
+@media (max-width: 768px) {
+  .a-header {
+    padding: 0 16px;
+    &__inner { height: 60px; }
+    &__logo img { height: 38px; }
+  }
+
+  .a-nav {
+    padding: 0 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+
+    &__inner {
+      gap: 4px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      padding: 10px 0;
+    }
+
+    &__link { font-size: 13px; }
+  }
+
+  .a-content { padding: 0 16px 32px; }
+}
+
+@media (max-width: 480px) {
+  .a-header {
+    &__user {
+      padding: 6px 10px;
+      gap: 0;
+      span { display: none; }
+    }
+  }
+
+  .a-nav__sep { display: none; }
+  .a-nav__inner { gap: 2px; }
+  .a-nav__link { font-size: 12px; padding: 4px 8px; }
+}
 </style>

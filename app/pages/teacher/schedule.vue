@@ -377,4 +377,51 @@ function getLesson(dayIndex: number, time: string) {
     &--done   { background: var(--c-green-light);  color: var(--c-green-text);  border: 1px solid var(--c-green); }
   }
 }
+
+@media (max-width: 768px) {
+  /* Расписание — горизонтальный скролл */
+  .sch-grid {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+
+    /* Восстанавливаем grid внутри скролл-обёртки */
+    > * {
+      display: contents;
+    }
+  }
+
+  /* Проще: обернуть в div-обёртку со скроллом */
+  .sch-grid {
+    display: grid;
+    grid-template-columns: 56px repeat(5, minmax(90px, 1fr));
+    min-width: 520px;
+  }
+
+  /* Обёртка для скролла */
+  .sch > .sch-grid {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-md);
+  }
+
+  .sch-grid__time { font-size: 11px; padding: 6px 2px; }
+
+  .sch-grid__day-num { font-size: 16px; }
+
+  .sch-lesson {
+    padding: 6px 8px;
+    &__group { font-size: 11px; }
+    &__subject { font-size: 10px; }
+  }
+
+  /* Канбан — стек */
+  .sch-kanban { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .sch__title { font-size: 20px; }
+
+  .sch-grid { grid-template-columns: 48px repeat(5, minmax(72px, 1fr)); }
+}
 </style>

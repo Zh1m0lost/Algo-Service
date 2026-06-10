@@ -375,4 +375,63 @@ const filtered = computed(() => {
   color: var(--c-white);
   flex-shrink: 0;
 }
+
+/* Person row */
+.al-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .al-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+    gap: 12px;
+
+    &__title { font-size: 22px; }
+  }
+
+  .al-card {
+    padding: 16px;
+
+    &__head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    &__controls { width: 100%; justify-content: space-between; }
+  }
+
+  .al-search__input { width: 140px; }
+
+  /* Таблицы — горизонтальный скролл */
+  .al-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .al-table {
+    min-width: 640px;
+
+    th { padding: 8px 10px; font-size: 10px; }
+
+    &__row td { padding: 12px 10px; font-size: 13px; }
+  }
+
+  .al-progress__bar { width: 60px; }
+}
+
+@media (max-width: 480px) {
+  .al-hero {
+    padding: 16px;
+    &__badges { flex-wrap: wrap; }
+    &__badge { font-size: 13px; padding: 6px 14px; }
+  }
+
+  .al-tabs { gap: 6px; }
+
+  .al-tab { padding: 6px 12px; font-size: 12px; }
+
+  .al-search__input { width: 110px; }
+}
 </style>

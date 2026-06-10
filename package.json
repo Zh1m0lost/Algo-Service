@@ -15,6 +15,7 @@
     "vue-router": "^5.0.4"
   },
   "devDependencies": {
+    "docx": "^9.6.1",
     "sass": "^1.99.0"
   }
 }
