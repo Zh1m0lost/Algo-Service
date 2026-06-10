@@ -5,7 +5,7 @@ definePageMeta({ layout: 'teacher' })
 
 const form = reactive({
   task: 'Frontend разработка',
-  student: 'Иван Иванов',
+  student: 'Всем',
   group: 'Web-1-2026',
   deadline: '07.05.2026',
   points: '100',
@@ -15,7 +15,7 @@ const form = reactive({
 })
 
 const tasks = ['Frontend разработка', 'JavaScript: Массивы', 'Алгоритмы сортировки', 'Python ООП', 'CSS Grid']
-const students = ['Иван Иванов', 'Мария Смирнова', 'Алексей Козлов', 'Дарья Михайлова', 'Пётр Николаев']
+const students = ['Всем', 'Иван Иванов', 'Мария Смирнова', 'Алексей Козлов', 'Дарья Михайлова', 'Пётр Николаев']
 const groups = ['Web-1-2026', 'Web-2-2026', 'Python-A', 'Python-B', 'React-2025']
 const pointsOptions = ['60', '80', '100', '120', '150']
 const attemptsOptions = ['Неограниченно', '1', '2', '3', '5']
@@ -29,9 +29,20 @@ const pendingReview = [
   { id: 5, name: 'Пётр Николаев',   task: 'Frontend — Лендинг' }
 ]
 
-function submit() { /* TODO: POST /api/teacher/homework */ }
-function saveDraft() { /* TODO: POST /api/teacher/homework/draft */ }
-function review(id: number) { /* TODO: navigate to review page */ }
+const toast = reactive({ show: false, text: '' })
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToast(text: string) {
+  if (toastTimer) clearTimeout(toastTimer)
+  toast.text = text
+  toast.show = true
+  toastTimer = setTimeout(() => { toast.show = false }, 2500)
+}
+
+function submit() { showToast('Задание выдано') }
+function saveDraft() { showToast('Черновик сохранён') }
+const router = useRouter()
+function review(id: number) { router.push(`/teacher/review/${id}`) }
 </script>
 
 <template>
@@ -146,6 +157,10 @@ function review(id: number) { /* TODO: navigate to review page */ }
     </div>
 
   </div>
+
+  <Transition name="toast">
+    <div v-if="toast.show" class="hw-toast">{{ toast.text }}</div>
+  </Transition>
 </template>
 
 <style lang="scss">
@@ -363,6 +378,25 @@ function review(id: number) { /* TODO: navigate to review page */ }
     &:hover { opacity: 0.88; }
   }
 }
+
+.hw-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--c-green);
+  color: var(--c-white);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 28px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 999;
+  white-space: nowrap;
+}
+
+.toast-enter-active, .toast-leave-active { transition: opacity 0.25s, transform 0.25s; }
+.toast-enter-from, .toast-leave-to       { opacity: 0; transform: translateX(-50%) translateY(12px); }
 
 @media (max-width: 900px) {
   .hw-page { grid-template-columns: 1fr; }

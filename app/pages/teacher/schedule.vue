@@ -17,14 +17,14 @@ const data = {
   timeSlots: ['16:00', '18:00', '20:00'],
 
   lessons: [
-    { day: 1, time: '18:00', group: 'WebDev-B', subject: 'JavaScript',  color: '#EDE7FF', text: '#5B2D8E' },
-    { day: 1, time: '20:00', group: 'Python-A',  subject: 'ООП',         color: '#E2F5D8', text: '#2E6E16' },
-    { day: 2, time: '16:00', group: 'WebDev-A', subject: 'HTML/CSS',    color: '#FFF5C2', text: '#7A6100' },
-    { day: 2, time: '20:00', group: 'Python-B',  subject: 'Функции',    color: '#D8EEFF', text: '#1A5A8E' },
-    { day: 3, time: '18:00', group: 'WebDev-B', subject: 'Промисы',     color: '#E2F5D8', text: '#2E6E16' },
-    { day: 4, time: '16:00', group: 'React-2025',subject: 'Компоненты', color: '#D8EEFF', text: '#1A5A8E' },
-    { day: 4, time: '20:00', group: 'Алро-Adv', subject: 'Графы',       color: '#FFF5C2', text: '#7A6100' },
-    { day: 5, time: '18:00', group: 'WebDev-A', subject: 'Проект',      color: '#EDE7FF', text: '#5B2D8E' }
+    { id: 1, day: 1, time: '18:00', group: 'WebDev-B',  subject: 'JavaScript',  color: '#EDE7FF', text: '#5B2D8E' },
+    { id: 2, day: 1, time: '20:00', group: 'Python-A',  subject: 'ООП',         color: '#E2F5D8', text: '#2E6E16' },
+    { id: 3, day: 2, time: '16:00', group: 'WebDev-A',  subject: 'HTML/CSS',    color: '#FFF5C2', text: '#7A6100' },
+    { id: 4, day: 2, time: '20:00', group: 'Python-B',  subject: 'Функции',     color: '#D8EEFF', text: '#1A5A8E' },
+    { id: 5, day: 3, time: '18:00', group: 'WebDev-B',  subject: 'Промисы',     color: '#E2F5D8', text: '#2E6E16' },
+    { id: 6, day: 4, time: '16:00', group: 'React-2025',subject: 'Компоненты',  color: '#D8EEFF', text: '#1A5A8E' },
+    { id: 7, day: 4, time: '20:00', group: 'Алро-Adv',  subject: 'Графы',       color: '#FFF5C2', text: '#7A6100' },
+    { id: 8, day: 5, time: '18:00', group: 'WebDev-A',  subject: 'Проект',      color: '#EDE7FF', text: '#5B2D8E' }
   ],
 
   tasks: {
@@ -64,6 +64,11 @@ const lessonMap = computed(() => {
 function getLesson(dayIndex: number, time: string) {
   return lessonMap.value[`${dayIndex}-${time}`] ?? null
 }
+
+const router = useRouter()
+function openLesson(lesson: typeof data.lessons[0]) {
+  router.push(`/teacher/lesson/${lesson.id}`)
+}
 </script>
 
 <template>
@@ -101,11 +106,14 @@ function getLesson(dayIndex: number, time: string) {
             class="sch-lesson"
             :style="{
               background: getLesson(day.index, time)!.color,
-              color: getLesson(day.index, time)!.text
+              color: getLesson(day.index, time)!.text,
+              '--sch-lesson-hover': getLesson(day.index, time)!.text + '18'
             }"
+            @click="openLesson(getLesson(day.index, time)!)"
           >
             <span class="sch-lesson__group">{{ getLesson(day.index, time)!.group }}</span>
             <span class="sch-lesson__subject">{{ getLesson(day.index, time)!.subject }}</span>
+            <span class="sch-lesson__arrow">→</span>
           </div>
         </div>
       </template>
@@ -276,6 +284,21 @@ function getLesson(dayIndex: number, time: string) {
   flex-direction: column;
   justify-content: center;
   gap: 4px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+  position: relative;
+
+  &:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.13);
+    filter: brightness(0.96);
+  }
+
+  &:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    filter: brightness(0.9);
+  }
 
   &__group {
     font-size: 13px;
@@ -288,6 +311,15 @@ function getLesson(dayIndex: number, time: string) {
     font-weight: 400;
     opacity: 0.85;
   }
+
+  &__arrow {
+    font-size: 12px;
+    opacity: 0;
+    margin-top: 2px;
+    transition: opacity 0.15s;
+  }
+
+  &:hover &__arrow { opacity: 0.7; }
 }
 
 /* ── Задачи ─────────────────────────── */

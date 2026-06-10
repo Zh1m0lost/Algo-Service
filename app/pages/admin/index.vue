@@ -1,7 +1,109 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'admin' })
 
-// TODO: заменить на useFetch('/api/admin/dashboard')
+// ── Shared state (same keys as individual pages) ─────────────────────────────
+type Student = { id:number; initials:string; color:string; name:string; group:string; parent:string; phone:string; payment:'paid'|'overdue'|'pending'; points:number }
+type Teacher = { id:number; initials:string; color:string; name:string; subject:string; email:string; phone:string; status:'active'|'probation'|'pending'; rate:number }
+type Group   = { id:number; name:string; subject:string; teacher:string; students:number; schedule:string; format:string; progress:number; status:'active'|'finishing'|'draft'|'archive' }
+type Task    = { id:number; title:string; desc:string; recurrence:{ label:string; cls:string }; deadline:{ text:string; urgent:boolean }; assignee:{ name:string; role:string }; comment:{ author:string; date:string; text:string }|null; urgency:'urgent'|'soon'|'calm' }
+
+const students = useState<Student[]>('adminStudents', () => [])
+const teachers = useState<Teacher[]>('adminTeachers', () => [])
+const groups   = useState<Group[]>('adminGroups',   () => [])
+const tasks    = useState<Task[]>('adminTasks',     () => [])
+
+const avatarColors = ['#F5A623','#7B5EA7','#E8823A','#D4A017','#6B8FA8','#5B7EA6','#3A9A8A','#4A8C5C','#57A86B','#A07BC0']
+const recurrenceOptions = [
+  { label:'Однократно',                        cls:'tk-pill--gray'   },
+  { label:'Еженедельно · Каждый понедельник',  cls:'tk-pill--yellow' },
+  { label:'По дням недели · Пн / Ср / Пт',    cls:'tk-pill--yellow' },
+  { label:'Ежемесячно · 1-го числа',          cls:'tk-pill--pink'   },
+  { label:'Ежедневно · Каждый рабочий день',  cls:'tk-pill--green'  },
+]
+
+function mkInitials(name: string) {
+  return name.split(' ').filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join('')
+}
+
+// ── Modal state ───────────────────────────────────────────────────────────────
+type ModalType = 'student'|'teacher'|'group'|'task'|null
+const activeModal = ref<ModalType>(null)
+
+const studentForm = reactive({ name:'', group:'', parent:'', phone:'', payment:'paid' as 'paid'|'overdue'|'pending', points:0 })
+const teacherForm = reactive({ name:'', subject:'', email:'', phone:'', status:'active' as 'active'|'probation'|'pending', rate:1200 })
+const groupForm   = reactive({ name:'', subject:'', teacher:'', students:0, schedule:'', format:'Онлайн', status:'active' as 'active'|'finishing'|'draft'|'archive' })
+const taskForm    = reactive({ title:'', desc:'', recurrenceIdx:0, deadlineText:'', deadlineUrgent:false, assigneeName:'', assigneeRole:'группа' as 'группа'|'преподаватель'|'админ', urgency:'calm' as 'urgent'|'soon'|'calm' })
+
+const toast = reactive({ show: false, text: '' })
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+function showToast(text: string) {
+  if (toastTimer) clearTimeout(toastTimer)
+  toast.text = text; toast.show = true
+  toastTimer = setTimeout(() => { toast.show = false }, 2500)
+}
+
+function openModal(type: ModalType) { activeModal.value = type }
+function closeModal() { activeModal.value = null }
+
+function submitStudent() {
+  if (!studentForm.name.trim()) return
+  students.value.push({
+    id: Date.now(),
+    initials: mkInitials(studentForm.name),
+    color: avatarColors[students.value.length % avatarColors.length],
+    name: studentForm.name, group: studentForm.group, parent: studentForm.parent,
+    phone: studentForm.phone, payment: studentForm.payment, points: studentForm.points
+  })
+  closeModal()
+  Object.assign(studentForm, { name:'', group:'', parent:'', phone:'', payment:'paid', points:0 })
+  showToast('Ученик добавлен')
+}
+
+function submitTeacher() {
+  if (!teacherForm.name.trim()) return
+  teachers.value.push({
+    id: Date.now(),
+    initials: mkInitials(teacherForm.name),
+    color: avatarColors[teachers.value.length % avatarColors.length],
+    name: teacherForm.name, subject: teacherForm.subject, email: teacherForm.email,
+    phone: teacherForm.phone, status: teacherForm.status, rate: teacherForm.rate
+  })
+  closeModal()
+  Object.assign(teacherForm, { name:'', subject:'', email:'', phone:'', status:'active', rate:1200 })
+  showToast('Преподаватель добавлен')
+}
+
+function submitGroup() {
+  if (!groupForm.name.trim()) return
+  groups.value.push({
+    id: Date.now(),
+    name: groupForm.name, subject: groupForm.subject, teacher: groupForm.teacher || '—',
+    students: groupForm.students, schedule: groupForm.schedule || '—',
+    format: groupForm.format, progress: 0, status: groupForm.status
+  })
+  closeModal()
+  Object.assign(groupForm, { name:'', subject:'', teacher:'', students:0, schedule:'', format:'Онлайн', status:'active' })
+  showToast('Группа добавлена')
+}
+
+function submitTask() {
+  if (!taskForm.title.trim()) return
+  tasks.value.push({
+    id: Date.now(),
+    title: taskForm.title,
+    desc: taskForm.desc,
+    recurrence: recurrenceOptions[taskForm.recurrenceIdx],
+    deadline: { text: taskForm.deadlineText || '—', urgent: taskForm.deadlineUrgent },
+    assignee: { name: taskForm.assigneeName || '—', role: taskForm.assigneeRole },
+    comment: null,
+    urgency: taskForm.urgency
+  })
+  closeModal()
+  Object.assign(taskForm, { title:'', desc:'', recurrenceIdx:0, deadlineText:'', deadlineUrgent:false, assigneeName:'', assigneeRole:'группа', urgency:'calm' })
+  showToast('Задача добавлена')
+}
+
+// ── Static dashboard data ─────────────────────────────────────────────────────
 const data = {
   admin: { name: 'Алексей' },
 
@@ -13,37 +115,17 @@ const data = {
   },
 
   statCards: [
-    {
-      icon: '👥', title: 'Группы',
-      desc: 'Состав, расписание, преподаватели',
-      value: 24, delta: '+2 за месяц',
-      to: '/admin/groups'
-    },
-    {
-      icon: '🎓', title: 'Ученики',
-      desc: 'Карточки, оплата, прогресс, баллы',
-      value: 312, delta: '+16 за месяц',
-      to: '/admin/students'
-    },
-    {
-      icon: '📚', title: 'Преподаватели',
-      desc: 'Нагрузка, ставка, предметы',
-      value: 18, delta: '1 в найме',
-      to: '/admin/teachers'
-    },
-    {
-      icon: '📋', title: 'Мастер-задач',
-      desc: 'Дедлайны, регулярные задания, описания',
-      value: 47, delta: '5 на этой неделе',
-      to: '/admin/tasks'
-    }
+    { icon: '👥', title: 'Группы',        desc: 'Состав, расписание, преподаватели',       value: 24,  delta: '+2 за месяц',     to: '/admin/groups'   },
+    { icon: '🎓', title: 'Ученики',        desc: 'Карточки, оплата, прогресс, баллы',       value: 312, delta: '+16 за месяц',    to: '/admin/students' },
+    { icon: '📚', title: 'Преподаватели',  desc: 'Нагрузка, ставка, предметы',              value: 18,  delta: '1 в найме',       to: '/admin/teachers' },
+    { icon: '📋', title: 'Мастер-задач',   desc: 'Дедлайны, регулярные задания, описания',  value: 47,  delta: '5 на этой неделе', to: '/admin/tasks'   }
   ],
 
   quickActions: [
-    { icon: '+', label: 'Новая группа',   sub: 'Расписание',          to: '/admin/groups/new'   },
-    { icon: '+', label: 'Новый ученик',   sub: 'Карточка контакт',    to: '/admin/students/new' },
-    { icon: '+', label: 'Преподаватель',  sub: 'Ставка · предметы',   to: '/admin/teachers/new' },
-    { icon: '+', label: 'Задача',         sub: 'Дедлайн, регулярность', to: '/admin/tasks/new'  }
+    { label: 'Новая группа',  sub: 'Расписание',            type: 'group'   as ModalType },
+    { label: 'Новый ученик',  sub: 'Карточка · контакт',    type: 'student' as ModalType },
+    { label: 'Преподаватель', sub: 'Ставка · предметы',     type: 'teacher' as ModalType },
+    { label: 'Задача',        sub: 'Дедлайн, регулярность', type: 'task'    as ModalType }
   ],
 
   lessons: [
@@ -54,10 +136,10 @@ const data = {
   ],
 
   activity: [
-    { id: 1, text: 'Анна Кузьмина зарегистрирована в Алгоритмике',      time: '5 мин. назад' },
-    { id: 2, text: 'Создана задача «Проект к финалу» · регулярная',      time: '5 мин.'       },
-    { id: 3, text: 'Е. Петрова обновила расписание Front-Adv-1',         time: '4 мин.'       },
-    { id: 4, text: 'Платёж просрочен · М. Соколов',                      time: '1 час'        }
+    { id: 1, text: 'Анна Кузьмина зарегистрирована в Алгоритмике',   time: '5 мин. назад' },
+    { id: 2, text: 'Создана задача «Проект к финалу» · регулярная',   time: '5 мин.'       },
+    { id: 3, text: 'Е. Петрова обновила расписание Front-Adv-1',      time: '4 мин.'       },
+    { id: 4, text: 'Платёж просрочен · М. Соколов',                   time: '1 час'        }
   ],
 
   alerts: [
@@ -124,16 +206,16 @@ const data = {
     <div class="adm-quick-wrap">
       <p class="adm-section-label">БЫСТРЫЕ ДЕЙСТВИЯ</p>
       <div class="adm-quick">
-        <NuxtLink
+        <button
           v-for="action in data.quickActions"
           :key="action.label"
-          :to="action.to"
           class="adm-quick-btn"
+          @click="openModal(action.type)"
         >
           <span class="adm-quick-btn__plus">+</span>
           <span class="adm-quick-btn__label">{{ action.label }}</span>
           <span class="adm-quick-btn__sub">{{ action.sub }}</span>
-        </NuxtLink>
+        </button>
       </div>
     </div>
 
@@ -185,6 +267,202 @@ const data = {
     </div>
 
   </div>
+
+  <!-- ── Модалки ─────────────────────────────────────────────────────────── -->
+  <Teleport to="body">
+
+    <!-- Новый ученик -->
+    <div v-if="activeModal === 'student'" class="al-modal-overlay" @click.self="closeModal">
+      <div class="al-modal">
+        <h2 class="al-modal__title">Новый ученик</h2>
+        <div class="al-modal__fields">
+          <div class="al-modal__field al-modal__field--full">
+            <label class="al-modal__label">ФИО *</label>
+            <input v-model="studentForm.name" class="al-modal__input" placeholder="Иван Иванов" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Группа</label>
+            <input v-model="studentForm.group" class="al-modal__input" placeholder="WebDev-2024-A" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Родитель</label>
+            <input v-model="studentForm.parent" class="al-modal__input" placeholder="Мария Иванова" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Телефон</label>
+            <input v-model="studentForm.phone" class="al-modal__input" placeholder="+7 (900) 000-00-00" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Оплата</label>
+            <select v-model="studentForm.payment" class="al-modal__select">
+              <option value="paid">Оплачено</option>
+              <option value="pending">Ожидает</option>
+              <option value="overdue">Просрочено</option>
+            </select>
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Баллы</label>
+            <input v-model.number="studentForm.points" type="number" min="0" class="al-modal__input" placeholder="0" />
+          </div>
+        </div>
+        <div class="al-modal__footer">
+          <button class="al-modal__btn al-modal__btn--cancel" @click="closeModal">Отмена</button>
+          <button class="al-modal__btn al-modal__btn--submit" @click="submitStudent">Добавить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Новый преподаватель -->
+    <div v-if="activeModal === 'teacher'" class="al-modal-overlay" @click.self="closeModal">
+      <div class="al-modal">
+        <h2 class="al-modal__title">Новый преподаватель</h2>
+        <div class="al-modal__fields">
+          <div class="al-modal__field al-modal__field--full">
+            <label class="al-modal__label">ФИО *</label>
+            <input v-model="teacherForm.name" class="al-modal__input" placeholder="Иван Петров" />
+          </div>
+          <div class="al-modal__field al-modal__field--full">
+            <label class="al-modal__label">Предмет</label>
+            <input v-model="teacherForm.subject" class="al-modal__input" placeholder="Python, Web-разработка..." />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Email</label>
+            <input v-model="teacherForm.email" class="al-modal__input" placeholder="teacher@algo.ru" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Телефон</label>
+            <input v-model="teacherForm.phone" class="al-modal__input" placeholder="+7 (900) 000-00-00" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Статус</label>
+            <select v-model="teacherForm.status" class="al-modal__select">
+              <option value="active">Активный</option>
+              <option value="probation">Исп. срок</option>
+              <option value="pending">Ожидает</option>
+            </select>
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Ставка (₽/час)</label>
+            <input v-model.number="teacherForm.rate" type="number" min="0" class="al-modal__input" placeholder="1200" />
+          </div>
+        </div>
+        <div class="al-modal__footer">
+          <button class="al-modal__btn al-modal__btn--cancel" @click="closeModal">Отмена</button>
+          <button class="al-modal__btn al-modal__btn--submit" @click="submitTeacher">Добавить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Новая группа -->
+    <div v-if="activeModal === 'group'" class="al-modal-overlay" @click.self="closeModal">
+      <div class="al-modal">
+        <h2 class="al-modal__title">Новая группа</h2>
+        <div class="al-modal__fields">
+          <div class="al-modal__field al-modal__field--full">
+            <label class="al-modal__label">Название группы *</label>
+            <input v-model="groupForm.name" class="al-modal__input" placeholder="WebDev-2025-A" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Предмет</label>
+            <input v-model="groupForm.subject" class="al-modal__input" placeholder="Frontend, Python..." />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Преподаватель</label>
+            <input v-model="groupForm.teacher" class="al-modal__input" placeholder="Иван Петров" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Расписание</label>
+            <input v-model="groupForm.schedule" class="al-modal__input" placeholder="Пн/Ср · 18:00" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Формат</label>
+            <select v-model="groupForm.format" class="al-modal__select">
+              <option>Онлайн</option>
+              <option>Офлайн</option>
+              <option>Гибрид</option>
+            </select>
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Статус</label>
+            <select v-model="groupForm.status" class="al-modal__select">
+              <option value="active">Активна</option>
+              <option value="finishing">Завершается</option>
+              <option value="draft">Черновик</option>
+              <option value="archive">Архив</option>
+            </select>
+          </div>
+        </div>
+        <div class="al-modal__footer">
+          <button class="al-modal__btn al-modal__btn--cancel" @click="closeModal">Отмена</button>
+          <button class="al-modal__btn al-modal__btn--submit" @click="submitGroup">Добавить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Новая задача -->
+    <div v-if="activeModal === 'task'" class="al-modal-overlay" @click.self="closeModal">
+      <div class="al-modal al-modal--wide">
+        <h2 class="al-modal__title">Новая задача</h2>
+        <div class="al-modal__fields">
+          <div class="al-modal__field al-modal__field--full">
+            <label class="al-modal__label">Название *</label>
+            <input v-model="taskForm.title" class="al-modal__input" placeholder="Название задачи" />
+          </div>
+          <div class="al-modal__field al-modal__field--full">
+            <label class="al-modal__label">Описание</label>
+            <textarea v-model="taskForm.desc" class="al-modal__textarea" placeholder="Подробное описание..." rows="3" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Регулярность</label>
+            <select v-model.number="taskForm.recurrenceIdx" class="al-modal__select">
+              <option v-for="(opt, i) in recurrenceOptions" :key="i" :value="i">{{ opt.label }}</option>
+            </select>
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Дедлайн</label>
+            <input v-model="taskForm.deadlineText" class="al-modal__input" placeholder="28 апреля · 23:59" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Кому назначено</label>
+            <input v-model="taskForm.assigneeName" class="al-modal__input" placeholder="WebDev-2024-A" />
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Роль</label>
+            <select v-model="taskForm.assigneeRole" class="al-modal__select">
+              <option value="группа">Группа</option>
+              <option value="преподаватель">Преподаватель</option>
+              <option value="админ">Админ</option>
+            </select>
+          </div>
+          <div class="al-modal__field">
+            <label class="al-modal__label">Срочность</label>
+            <select v-model="taskForm.urgency" class="al-modal__select">
+              <option value="urgent">Срочно</option>
+              <option value="soon">Скоро</option>
+              <option value="calm">Спокойно</option>
+            </select>
+          </div>
+          <div class="al-modal__field al-modal__field--checkbox">
+            <label class="al-modal__checkbox-label">
+              <input v-model="taskForm.deadlineUrgent" type="checkbox" />
+              Горящий дедлайн
+            </label>
+          </div>
+        </div>
+        <div class="al-modal__footer">
+          <button class="al-modal__btn al-modal__btn--cancel" @click="closeModal">Отмена</button>
+          <button class="al-modal__btn al-modal__btn--submit" @click="submitTask">Добавить</button>
+        </div>
+      </div>
+    </div>
+
+  </Teleport>
+
+  <!-- Toast -->
+  <Transition name="toast">
+    <div v-if="toast.show" class="al-toast">{{ toast.text }}</div>
+  </Transition>
+
 </template>
 
 <style lang="scss">
@@ -402,6 +680,9 @@ const data = {
   text-decoration: none;
   text-align: center;
   transition: opacity 0.2s;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-main);
 
   &:hover { opacity: 0.8; }
 

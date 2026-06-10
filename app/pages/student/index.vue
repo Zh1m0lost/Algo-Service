@@ -9,6 +9,7 @@ const data = {
   user: { name: 'Иван' },
   progress: { total: 5, completed: 3, message: 'До конца модуля осталось всего 2 задания.' },
   nextLesson: {
+    homeworkId: 4,
     dateLabel: 'Вторник, 29 апреля 2026',
     title: 'JavaScript — Асинхронность и промисы',
     teacher: 'Елена Петровна',
@@ -106,7 +107,7 @@ const progressPercent = computed(() =>
           </a>
         </div>
         <div class="lesson-divider" />
-        <NuxtLink to="#" class="btn-primary">Подробнее</NuxtLink>
+        <NuxtLink :to="`/student/homework/${data.nextLesson.homeworkId}`" class="btn-primary">Подробнее</NuxtLink>
       </div>
 
       <!-- Ближайший дедлайн -->

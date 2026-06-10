@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import calendarIcon from '~/assets/icons/PerpleCalendar.svg'
-import starIcon from '~/assets/icons/Star.svg'
 
 definePageMeta({ layout: 'student' })
 
@@ -62,11 +61,19 @@ const statusMap: Record<string, { label: string; cls: string }> = {
   pending:    { label: 'Не начато',   cls: 'hw-badge--gray'   }
 }
 
-const showEditModal = ref(false)
+const answer   = reactive({ ...data.answer })
+const comments = ref([...data.comments])
+
+const showEditModal     = ref(false)
 const showDeleteConfirm = ref(false)
-const newComment = ref('')
-const dragOver = ref(false)
+const newComment   = ref('')
+const dragOver     = ref(false)
 const selectedFile = ref<File | null>(null)
+const fileInput    = ref<HTMLInputElement | null>(null)
+
+function openFilePicker() {
+  fileInput.value?.click()
+}
 
 function onDrop(e: DragEvent) {
   dragOver.value = false
@@ -80,20 +87,46 @@ function onFileChange(e: Event) {
 }
 
 function saveAnswer() {
-  // TODO: отправить файл на /api/student/homework/:id/answer
+  // TODO: POST /api/student/homework/:id/answer (FormData с файлом)
+  if (selectedFile.value) {
+    const now = new Date()
+    const dateStr = now.toLocaleString('ru', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    answer.file = { name: selectedFile.value.name, date: dateStr }
+    answer.statusLabel = 'Отправлено на проверку'
+    answer.lastChange  = dateStr
+  }
   showEditModal.value = false
-  selectedFile.value = null
+  selectedFile.value  = null
 }
 
 function deleteAnswer() {
   // TODO: DELETE /api/student/homework/:id/answer
+  answer.file        = null as any
+  answer.statusLabel = 'Ответ не загружен'
+  answer.grading     = '—'
   showDeleteConfirm.value = false
 }
 
 function sendComment() {
   if (!newComment.value.trim()) return
   // TODO: POST /api/student/homework/:id/comments
+  const now = new Date()
+  const dateStr = now.toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace(',', '')
+  comments.value.push({
+    id:        Date.now(),
+    initials:  'ИИ',
+    author:    'Иван Иванов',
+    role:      'student',
+    roleLabel: 'Ученик',
+    date:      dateStr,
+    text:      newComment.value.trim()
+  })
   newComment.value = ''
+}
+
+function deleteComment(id: number) {
+  // TODO: DELETE /api/student/homework/:id/comments/:commentId
+  comments.value = comments.value.filter(c => c.id !== id)
 }
 </script>
 
@@ -116,7 +149,7 @@ function sendComment() {
           Срок: <strong>{{ data.deadline }}</strong>
         </span>
         <span class="hw-card__meta-item">
-          <img :src="starIcon" alt="" class="hw-card__star" />
+          <span class="hw-card__star">⭐</span>
           <span class="hw-points-badge">{{ data.points }} баллов</span>
         </span>
         <span v-for="tag in data.tags" :key="tag" class="hw-tag">{{ tag }}</span>
@@ -145,29 +178,32 @@ function sendComment() {
         <tbody>
           <tr class="hw-table__row">
             <td class="hw-table__key">Статус ответа</td>
-            <td class="hw-table__val hw-table__val--yellow">{{ data.answer.statusLabel }}</td>
+            <td class="hw-table__val hw-table__val--yellow">{{ answer.statusLabel }}</td>
           </tr>
           <tr class="hw-table__row">
             <td class="hw-table__key">Состояние оценивания</td>
-            <td class="hw-table__val">{{ data.answer.grading }}</td>
+            <td class="hw-table__val">{{ answer.grading }}</td>
           </tr>
           <tr class="hw-table__row">
             <td class="hw-table__key">Срок сдачи</td>
-            <td class="hw-table__val">{{ data.answer.deadline }}</td>
+            <td class="hw-table__val">{{ answer.deadline }}</td>
           </tr>
           <tr class="hw-table__row">
             <td class="hw-table__key">Оставшееся время</td>
-            <td class="hw-table__val">{{ data.answer.timeLeft }}</td>
+            <td class="hw-table__val">{{ answer.timeLeft }}</td>
           </tr>
           <tr class="hw-table__row">
             <td class="hw-table__key">Последнее изменение</td>
-            <td class="hw-table__val">{{ data.answer.lastChange }}</td>
+            <td class="hw-table__val">{{ answer.lastChange }}</td>
           </tr>
           <tr class="hw-table__row">
             <td class="hw-table__key">Ответ в виде файла</td>
             <td class="hw-table__val">
-              <span class="hw-file-link">📄 {{ data.answer.file.name }}</span>
-              <span class="hw-file-date">· {{ data.answer.file.date }}</span>
+              <template v-if="answer.file">
+                <span class="hw-file-link">📄 {{ answer.file.name }}</span>
+                <span class="hw-file-date">· {{ answer.file.date }}</span>
+              </template>
+              <span v-else class="hw-file-date">— файл не прикреплён</span>
             </td>
           </tr>
         </tbody>
@@ -189,7 +225,7 @@ function sendComment() {
 
       <div class="hw-chat">
         <div
-          v-for="msg in data.comments"
+          v-for="msg in comments"
           :key="msg.id"
           class="hw-msg"
           :class="msg.role === 'teacher' ? 'hw-msg--teacher' : 'hw-msg--student'"
@@ -204,6 +240,12 @@ function sendComment() {
                 {{ msg.roleLabel }}
               </span>
               <span class="hw-msg__date">{{ msg.date }}</span>
+              <button
+                v-if="msg.role === 'student'"
+                class="hw-msg__delete"
+                title="Удалить комментарий"
+                @click="deleteComment(msg.id)"
+              >✕</button>
             </div>
             <p class="hw-msg__text">{{ msg.text }}</p>
           </div>
@@ -239,18 +281,19 @@ function sendComment() {
             <div class="hw-modal__file-label">
               <span>📁</span> Файлы
             </div>
-            <label
+            <div
               class="hw-modal__drop"
               :class="{ 'hw-modal__drop--over': dragOver }"
+              @click="openFilePicker"
               @dragover.prevent="dragOver = true"
               @dragleave="dragOver = false"
               @drop.prevent="onDrop"
             >
-              <input type="file" class="hw-modal__file-input" @change="onFileChange" />
+              <input ref="fileInput" type="file" class="hw-modal__file-input" @change="onFileChange" />
               <span class="hw-modal__drop-arrow">↓</span>
               <span v-if="selectedFile" class="hw-modal__drop-text">{{ selectedFile.name }}</span>
-              <span v-else class="hw-modal__drop-text">Для загрузки файлов перетащите их сюда.</span>
-            </label>
+              <span v-else class="hw-modal__drop-text">Нажмите или перетащите файл сюда.</span>
+            </div>
           </div>
 
           <div class="hw-modal__footer">
@@ -327,7 +370,7 @@ function sendComment() {
     img { width: 16px; height: 16px; }
   }
 
-  &__star { width: 14px !important; height: 14px !important; }
+  &__star { font-size: 14px; line-height: 1; }
 
   &__desc {
     font-size: 15px;
@@ -547,6 +590,22 @@ function sendComment() {
     font-size: 12px;
     color: var(--c-text-gray);
     margin-left: auto;
+  }
+
+  &__delete {
+    margin-left: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--c-text-gray);
+    padding: 2px 4px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+
+    &:hover { color: var(--c-red); background: var(--c-red-light); }
   }
 
   &__text {

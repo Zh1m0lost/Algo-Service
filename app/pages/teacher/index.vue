@@ -131,10 +131,7 @@ const currentTasks = computed(() => data.tasks[activeTab.value])
               <p class="td-lesson__meta">{{ lesson.group }} · {{ lesson.format }} · {{ lesson.time }}</p>
             </div>
             <div class="td-lesson__btns">
-              <button class="td-btn td-btn--outline">Материалы</button>
-              <button class="td-btn td-btn--filled" :style="lesson.status === 'prepare' ? { background: 'transparent', border: '1.5px solid var(--c-purple-text)', color: 'var(--c-purple-text)' } : {}">
-                {{ lesson.status === 'start' ? 'Начать' : 'Подготовиться' }}
-              </button>
+              <NuxtLink :to="`/teacher/lesson/${lesson.id}`" class="td-btn td-btn--filled">Материалы</NuxtLink>
             </div>
           </div>
         </div>

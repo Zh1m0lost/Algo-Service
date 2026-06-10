@@ -64,8 +64,18 @@ function clickRight(rIdx: number) {
   selectedLeft.value = null
 }
 
-function isLeftAssigned(idx: number) { return idx in assignments.value }
+function isLeftAssigned(idx: number)  { return idx in assignments.value }
 function isRightAssigned(rIdx: number) { return Object.values(assignments.value).includes(rIdx) }
+function isLeftCorrect(lIdx: number)  { return lIdx in assignments.value && assignments.value[lIdx] === lIdx }
+function isLeftWrong(lIdx: number)    { return lIdx in assignments.value && assignments.value[lIdx] !== lIdx }
+function isRightCorrect(rIdx: number) {
+  const e = Object.entries(assignments.value).find(([, v]) => v === rIdx)
+  return e ? +e[0] === rIdx : false
+}
+function isRightWrong(rIdx: number) {
+  const e = Object.entries(assignments.value).find(([, v]) => v === rIdx)
+  return e ? +e[0] !== rIdx : false
+}
 function getLeftForRight(rIdx: number) {
   const e = Object.entries(assignments.value).find(([, v]) => v === rIdx)
   return e ? leftItems.value[+e[0]]?.value : null
@@ -75,6 +85,15 @@ const correctCount = computed(() =>
   Object.entries(assignments.value).filter(([l, r]) => +l === +r).length
 )
 const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.value.length))
+
+const savedToast = ref(false)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function saveTask() {
+  if (toastTimer) clearTimeout(toastTimer)
+  savedToast.value = true
+  toastTimer = setTimeout(() => { savedToast.value = false }, 2500)
+}
 </script>
 
 <template>
@@ -145,7 +164,8 @@ const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.va
                 class="con-prev-item"
                 :class="{
                   'con-prev-item--selected': selectedLeft === idx,
-                  'con-prev-item--assigned': isLeftAssigned(idx)
+                  'con-prev-item--assigned': isLeftCorrect(idx),
+                  'con-prev-item--wrong':    isLeftWrong(idx)
                 }"
                 @click="clickLeft(idx)"
               >
@@ -166,7 +186,8 @@ const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.va
                 :key="item.id"
                 class="con-prev-item con-prev-item--right"
                 :class="{
-                  'con-prev-item--matched': isRightAssigned(rIdx),
+                  'con-prev-item--matched':   isRightCorrect(rIdx),
+                  'con-prev-item--wrong':     isRightWrong(rIdx),
                   'con-prev-item--droppable': selectedLeft !== null && !isRightAssigned(rIdx)
                 }"
                 @click="clickRight(rIdx)"
@@ -178,7 +199,7 @@ const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.va
                 </span>
                 <span class="con-prev-item__arrow">←</span>
               </div>
-              <p class="con-preview__hint">Перетащите сюда</p>
+              <p class="con-preview__hint">Нажмите сюда</p>
             </div>
           </div>
 
@@ -194,10 +215,15 @@ const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.va
 
     <!-- Сохранить -->
     <div class="con-footer">
-      <button class="con-save-btn">Сохранить задание</button>
+      <button class="con-save-btn" @click="saveTask">Сохранить задание</button>
     </div>
 
   </div>
+
+  <!-- Toast -->
+  <Transition name="toast">
+    <div v-if="savedToast" class="con-toast">Задание сохранено</div>
+  </Transition>
 </template>
 
 <style lang="scss">
@@ -501,6 +527,16 @@ const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.va
     background: var(--c-green-light);
   }
 
+  &--wrong {
+    border-color: var(--c-red);
+    background: #FFE0E0;
+
+    .con-prev-item__matched-label {
+      color: var(--c-red);
+      background: #FFCCCC;
+    }
+  }
+
   &--droppable {
     border-color: var(--c-purple);
     border-style: dashed;
@@ -541,6 +577,26 @@ const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.va
 
   &:hover { opacity: 0.88; }
 }
+
+/* Toast */
+.con-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--c-green);
+  color: var(--c-white);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 28px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 999;
+  white-space: nowrap;
+}
+
+.toast-enter-active, .toast-leave-active { transition: opacity 0.25s, transform 0.25s; }
+.toast-enter-from, .toast-leave-to       { opacity: 0; transform: translateX(-50%) translateY(12px); }
 
 @media (max-width: 768px) {
   .con-editor { padding: 20px; }

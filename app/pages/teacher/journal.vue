@@ -13,14 +13,34 @@ const assignments = [
   'Алгоритмы - Сортировка'
 ]
 
+type Student = { name: string; points: number; grades: (number | null)[] }
+
 // grades[studentIndex][subjectIndex] = число (1-5) | null
-const students = ref([
-  { name: 'Иван Иванов',    points: 1240, grades: [5, 4, 5]    },
-  { name: 'Мария Смирнова', points: 980,  grades: [4, null, 5] },
-  { name: 'Алексей Козлов', points: 720,  grades: [3, 4, null] },
-  { name: 'Дарья Михайлова',points: 1480, grades: [5, 5, 4]    },
-  { name: 'Пётр Николаев',  points: 540,  grades: [2, 3, 3]    }
-])
+const studentsData = reactive<Record<string, Student[]>>({
+  'Web-Dev-2024-B': [
+    { name: 'Иван Иванов',    points: 1240, grades: [5, 4, 5]    },
+    { name: 'Мария Смирнова', points: 980,  grades: [4, null, 5] },
+    { name: 'Алексей Козлов', points: 720,  grades: [3, 4, null] },
+    { name: 'Дарья Михайлова',points: 1480, grades: [5, 5, 4]    },
+    { name: 'Пётр Николаев',  points: 540,  grades: [2, 3, 3]    }
+  ],
+  'WebDev-2024-A': [
+    { name: 'Анна Петрова',   points: 1100, grades: [4, 5, null] },
+    { name: 'Сергей Волков',  points: 870,  grades: [3, null, 4] },
+    { name: 'Елена Орлова',   points: 1320, grades: [5, 4, 5]    },
+    { name: 'Максим Зайцев',  points: 650,  grades: [3, 3, null] },
+    { name: 'Ольга Кузнецова',points: 990,  grades: [4, null, 3] }
+  ],
+  'Python-2024-A': [
+    { name: 'Никита Соколов', points: 1050, grades: [4, 4, null] },
+    { name: 'Юлия Морозова',  points: 1200, grades: [5, null, 5] },
+    { name: 'Артём Попов',    points: 780,  grades: [3, 4, 3]    },
+    { name: 'Ксения Лебедева',points: 920,  grades: [null, 4, 4] },
+    { name: 'Виктор Новиков', points: 1380, grades: [5, 5, 4]    }
+  ]
+})
+
+const students = computed(() => studentsData[selectedGroup.value])
 
 // Цвета ячеек по оценке
 const cellBg: Record<number, string> = {
@@ -57,16 +77,20 @@ const form = reactive({
   grade:      5
 })
 
+watch(selectedGroup, () => {
+  form.student = students.value[0]?.name ?? ''
+})
+
 function submitGrade() {
   const sIdx = students.value.findIndex(s => s.name === form.student)
   const aIdx = assignments.indexOf(form.assignment)
   if (sIdx === -1 || aIdx === -1) return
-  students.value[sIdx].grades[aIdx] = form.grade
+  students.value[sIdx].grades.splice(aIdx, 1, form.grade)
   // TODO: POST /api/teacher/journal/grade { student, assignment, points, grade }
 }
 
 function resetForm() {
-  form.student    = students.value[0].name
+  form.student    = students.value[0]?.name ?? ''
   form.assignment = assignments[0]
   form.points     = 85
   form.grade      = 5
@@ -74,6 +98,70 @@ function resetForm() {
 
 // Дропдаун группы
 const groupOpen = ref(false)
+
+function exportSvg() {
+  const colW   = [200, ...subjects.map(() => 110), 130, 120]
+  const rowH   = 48
+  const headH  = 52
+  const pad    = 16
+  const totalW = colW.reduce((a, b) => a + b, 0)
+  const totalH = headH + students.value.length * rowH
+
+  const x = (col: number) => colW.slice(0, col).reduce((a, b) => a + b, 0)
+
+  const gradeFill: Record<number, string> = { 5: '#D8F5D0', 4: '#D0E8FF', 3: '#EDE7FF', 2: '#FFE0E0' }
+
+  const cols = ['Ученик', ...subjects, 'Итого баллов', 'Средний балл']
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" font-family="Arial, sans-serif">`
+  svg += `<rect width="${totalW}" height="${totalH}" fill="#fff"/>`
+
+  // Заголовок
+  cols.forEach((col, ci) => {
+    svg += `<rect x="${x(ci)}" y="0" width="${colW[ci]}" height="${headH}" fill="#F8F8F8" stroke="#EBEBEB" stroke-width="1"/>`
+    svg += `<text x="${x(ci) + colW[ci] / 2}" y="${headH / 2 + 5}" text-anchor="middle" font-size="13" font-weight="600" fill="#333">${col}</text>`
+  })
+
+  // Строки
+  students.value.forEach((s, ri) => {
+    const y = headH + ri * rowH
+    const a = avg(s.grades)
+
+    const avgFill = a === null ? '#BBB' : a >= 4.5 ? '#4CAF50' : a >= 4.0 ? '#333' : a >= 3.5 ? '#6B48FF' : '#E53935'
+
+    // Имя
+    svg += `<rect x="${x(0)}" y="${y}" width="${colW[0]}" height="${rowH}" fill="#fff" stroke="#F0F0F0" stroke-width="1"/>`
+    svg += `<text x="${x(0) + pad}" y="${y + rowH / 2 + 5}" font-size="14" font-weight="500" fill="#333">${s.name}</text>`
+
+    // Оценки
+    subjects.forEach((_, si) => {
+      const g = s.grades[si]
+      const fill = g ? gradeFill[g] ?? '#fff' : '#fff'
+      svg += `<rect x="${x(si + 1)}" y="${y}" width="${colW[si + 1]}" height="${rowH}" fill="${fill}" stroke="#F0F0F0" stroke-width="1"/>`
+      svg += `<text x="${x(si + 1) + colW[si + 1] / 2}" y="${y + rowH / 2 + 6}" text-anchor="middle" font-size="18" font-weight="700" fill="#333">${g ?? '—'}</text>`
+    })
+
+    // Баллы
+    const pc = subjects.length + 1
+    svg += `<rect x="${x(pc)}" y="${y}" width="${colW[pc]}" height="${rowH}" fill="#fff" stroke="#F0F0F0" stroke-width="1"/>`
+    svg += `<text x="${x(pc) + colW[pc] / 2}" y="${y + rowH / 2 + 5}" text-anchor="middle" font-size="15" font-weight="700" fill="#B87A00">${s.points.toLocaleString('ru')}</text>`
+
+    // Средний
+    const ac = subjects.length + 2
+    svg += `<rect x="${x(ac)}" y="${y}" width="${colW[ac]}" height="${rowH}" fill="#fff" stroke="#F0F0F0" stroke-width="1"/>`
+    svg += `<text x="${x(ac) + colW[ac] / 2}" y="${y + rowH / 2 + 5}" text-anchor="middle" font-size="15" font-weight="700" fill="${avgFill}">${a ?? '—'}</text>`
+  })
+
+  svg += '</svg>'
+
+  const blob = new Blob([svg], { type: 'image/svg+xml' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = `journal-${selectedGroup.value}.svg`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <template>
@@ -102,7 +190,7 @@ const groupOpen = ref(false)
         </div>
 
         <!-- Экспорт -->
-        <button class="jrn-export-btn">⬇ Экспорт SVG</button>
+        <button class="jrn-export-btn" @click="exportSvg">⬇ Экспорт SVG</button>
       </div>
     </div>
 
