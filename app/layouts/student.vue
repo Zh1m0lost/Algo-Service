@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const userName = ref('Иван Иванов')
+const showLogoutModal = ref(false)
 
 function logout() {
   navigateTo('/auth/login')
@@ -19,7 +20,7 @@ function logout() {
             <img src="~/assets/icons/user.svg" alt="" class="s-header__avatar" />
             <span>{{ userName }}</span>
           </div>
-          <button class="s-header__logout" @click="logout">
+          <button class="s-header__logout" @click="showLogoutModal = true">
             <img src="~/assets/icons/exit.svg" alt="Выйти" />
           </button>
         </div>
@@ -39,6 +40,19 @@ function logout() {
     <main class="s-content">
       <slot />
     </main>
+
+    <Teleport to="body">
+      <div v-if="showLogoutModal" class="logout-overlay" @click.self="showLogoutModal = false">
+        <div class="logout-modal">
+          <h2 class="logout-modal__title">Выйти из аккаунта?</h2>
+          <p class="logout-modal__sub">Вы сможете войти снова в любой момент.</p>
+          <div class="logout-modal__btns">
+            <button class="logout-modal__btn logout-modal__btn--outline" @click="showLogoutModal = false">Отмена</button>
+            <button class="logout-modal__btn logout-modal__btn--filled" @click="logout">Выйти</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -138,6 +152,77 @@ function logout() {
   max-width: 1100px;
   margin: 0 auto;
   padding: 0 24px 40px;
+}
+
+.logout-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.logout-modal {
+  background: var(--c-white);
+  border-radius: var(--radius-lg);
+  padding: 40px 36px 32px;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+
+  &__icon { font-size: 40px; margin-bottom: 4px; }
+
+  &__title {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--c-text-dark);
+  }
+
+  &__sub {
+    font-size: 14px;
+    color: var(--c-text-gray);
+    margin-bottom: 8px;
+  }
+
+  &__btns {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  &__btn {
+    flex: 1;
+    height: 46px;
+    border-radius: var(--radius-full);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-main);
+    transition: opacity 0.2s;
+    border: none;
+
+    &--outline {
+      border: 1.5px solid var(--c-purple-text);
+      color: var(--c-purple-text);
+      background: transparent;
+      &:hover { background: var(--c-purple-light); }
+    }
+
+    &--filled {
+      background: var(--c-red);
+      color: var(--c-white);
+      &:hover { opacity: 0.88; }
+    }
+  }
 }
 
 @media (max-width: 768px) {

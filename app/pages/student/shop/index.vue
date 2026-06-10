@@ -5,20 +5,22 @@ import cartIcon   from '~/assets/icons/shopping-cart.svg'
 definePageMeta({ layout: 'student' })
 
 // TODO: заменить на useFetch('/api/student/shop')
+const balance = reactive({
+  total:     1240,
+  thisMonth: 180,
+  level:     'Продвинутый',
+  toNext:    260
+})
+
+const transactions = ref([
+  { id: 1, type: 'homework', title: 'Домашка: Алгоритмы и структуры данных', date: '22 апр. 2026', amount:  100 },
+  { id: 2, type: 'homework', title: 'Домашка: JavaScript Основы',            date: '18 апр. 2026', amount:   80 },
+  { id: 3, type: 'purchase', title: 'Покупка: Футболка АлгоСервис',          date: '10 апр. 2026', amount: -200 },
+  { id: 4, type: 'homework', title: 'Домашка: CSS Flexbox и Grid',           date: '10 апр. 2026', amount:   60 },
+  { id: 5, type: 'homework', title: 'Домашка: Git и GitHub',                 date: '5 апр. 2026',  amount:   50 }
+])
+
 const data = {
-  balance: {
-    total:     1240,
-    thisMonth: 180,
-    level:     'Продвинутый',
-    toNext:    260
-  },
-  transactions: [
-    { id: 1, type: 'homework', title: 'Домашка: Алгоритмы и структуры данных', date: '22 апр. 2026', amount:  100 },
-    { id: 2, type: 'homework', title: 'Домашка: JavaScript Основы',            date: '18 апр. 2026', amount:   80 },
-    { id: 3, type: 'purchase', title: 'Покупка: Футболка АлгоСервис',          date: '10 апр. 2026', amount: -200 },
-    { id: 4, type: 'homework', title: 'Домашка: CSS Flexbox и Grid',           date: '10 апр. 2026', amount:   60 },
-    { id: 5, type: 'homework', title: 'Домашка: Git и GitHub',                 date: '5 апр. 2026',  amount:   50 }
-  ],
   products: [
     { id: 1, emoji: '👕', bg: '#EAF0FF', title: 'Футболка Алгоритмика',    desc: 'Мягкий хлопок, логотип АлгоСервис на груди. Размеры S-XXL.',                        price: 500,  badge: 'hit'  },
     { id: 2, emoji: '🧢', bg: '#E8F4FF', title: 'Кепка «Code»',            desc: 'Регулируемый ремешок, вышивка спереди. Один размер.',                               price: 350,  badge: null   },
@@ -42,23 +44,33 @@ const selectedProduct = ref<typeof data.products[0] | null>(null)
 const purchaseDone    = ref(false)
 
 function openBuy(product: typeof data.products[0]) {
-  if (product.price > data.balance.total) return
+  if (product.price > balance.total) return
   selectedProduct.value = product
   purchaseDone.value = false
 }
 
 function confirmPurchase() {
+  if (!selectedProduct.value) return
   // TODO: POST /api/student/shop/buy { productId: selectedProduct.value.id }
+  const price = selectedProduct.value.price
+  balance.total -= price
+  transactions.value.unshift({
+    id:     Date.now(),
+    type:   'purchase',
+    title:  `Покупка: ${selectedProduct.value.title}`,
+    date:   new Date().toLocaleString('ru', { day: 'numeric', month: 'short', year: 'numeric' }),
+    amount: -price
+  })
   purchaseDone.value = true
   setTimeout(() => { selectedProduct.value = null }, 1200)
 }
 
 function remainder(price: number) {
-  return data.balance.total - price
+  return balance.total - price
 }
 
 function shortage(price: number) {
-  return price - data.balance.total
+  return price - balance.total
 }
 </script>
 
@@ -72,14 +84,14 @@ function shortage(price: number) {
       <div class="shop-balance">
         <p class="shop-balance__label">Накопительный счёт</p>
         <div class="shop-balance__total">
-          <span class="shop-balance__num">{{ data.balance.total.toLocaleString('ru') }}</span>
+          <span class="shop-balance__num">{{ balance.total.toLocaleString('ru') }}</span>
           <span class="shop-balance__star">⭐</span>
         </div>
         <p class="shop-balance__sub">Ваши баллы за выполненные задания</p>
         <div class="shop-balance__tags">
-          <span class="shop-balance__tag shop-balance__tag--green">+{{ data.balance.thisMonth }} в этом месяце</span>
-          <span class="shop-balance__tag shop-balance__tag--yellow">Уровень: {{ data.balance.level }}</span>
-          <span class="shop-balance__tag shop-balance__tag--outline">До следующего: {{ data.balance.toNext }} баллов</span>
+          <span class="shop-balance__tag shop-balance__tag--green">+{{ balance.thisMonth }} в этом месяце</span>
+          <span class="shop-balance__tag shop-balance__tag--yellow">Уровень: {{ balance.level }}</span>
+          <span class="shop-balance__tag shop-balance__tag--outline">До следующего: {{ balance.toNext }} баллов</span>
         </div>
       </div>
 
@@ -87,10 +99,10 @@ function shortage(price: number) {
       <div class="shop-history">
         <div class="shop-history__head">
           <span class="shop-history__title">История транзакций</span>
-          <span class="shop-history__count">{{ data.transactions.length }} операций</span>
+          <span class="shop-history__count">{{ transactions.length }} операций</span>
         </div>
         <div class="shop-history__list">
-          <div v-for="tx in data.transactions.slice(0, 4)" :key="tx.id" class="shop-tx">
+          <div v-for="tx in transactions.slice(0, 4)" :key="tx.id" class="shop-tx">
             <img
               :src="tx.type === 'purchase' ? cartIcon : checkIcon"
               alt=""
@@ -121,7 +133,7 @@ function shortage(price: number) {
           <p class="shop-merch__sub">Обменивайте баллы на крутые вещи</p>
         </div>
         <span class="shop-merch__balance">
-          Ваш баланс: <strong>{{ data.balance.total.toLocaleString('ru') }}</strong> ⭐
+          Ваш баланс: <strong>{{ balance.total.toLocaleString('ru') }}</strong> ⭐
         </span>
       </div>
 
@@ -157,7 +169,7 @@ function shortage(price: number) {
             <span class="shop-product__price">⭐ {{ product.price }}</span>
             <div class="shop-product__buy-wrap">
               <button
-                v-if="product.price <= data.balance.total"
+                v-if="product.price <= balance.total"
                 class="shop-product__btn"
                 @click="openBuy(product)"
               >
@@ -190,7 +202,7 @@ function shortage(price: number) {
               </div>
               <div class="shop-modal__row">
                 <span class="shop-modal__key">Текущий баланс</span>
-                <span class="shop-modal__val">{{ data.balance.total.toLocaleString('ru') }}</span>
+                <span class="shop-modal__val">{{ balance.total.toLocaleString('ru') }}</span>
               </div>
               <div class="shop-modal__row">
                 <span class="shop-modal__key">Остаток после покупки</span>
