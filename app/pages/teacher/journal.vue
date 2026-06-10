@@ -258,7 +258,7 @@ function exportSvg() {
         <div class="jrn-form__field jrn-form__field--sm">
           <label class="jrn-form__field-label">Оценка</label>
           <select v-model.number="form.grade" class="jrn-form__select">
-            <option v-for="n in [5,4,3,2,1]" :key="n" :value="n">{{ n }}</option>
+            <option v-for="n in [5,4,3,2]" :key="n" :value="n">{{ n }}</option>
           </select>
         </div>
       </div>

@@ -97,6 +97,10 @@ function sendComment() {
   newComment.value = ''
 }
 
+function deleteComment(id: number) {
+  comments.value = comments.value.filter(c => c.id !== id)
+}
+
 function goBack() { router.back() }
 </script>
 
@@ -171,6 +175,12 @@ function goBack() { router.back() }
                     {{ msg.roleLabel }}
                   </span>
                   <span class="rv-msg__date">{{ msg.date }}</span>
+                  <button
+                    v-if="msg.role === 'teacher'"
+                    class="rv-msg__delete"
+                    title="Удалить комментарий"
+                    @click="deleteComment(msg.id)"
+                  >✕</button>
                 </div>
                 <p class="rv-msg__text">{{ msg.text }}</p>
               </div>
@@ -465,6 +475,22 @@ function goBack() { router.back() }
   }
 
   &__date { font-size: 12px; color: var(--c-text-gray); margin-left: auto; }
+
+  &__delete {
+    margin-left: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--c-text-gray);
+    padding: 2px 4px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+
+    &:hover { color: var(--c-red); background: var(--c-red-light); }
+  }
 
   &__text { font-size: 14px; color: var(--c-text-dark); line-height: 1.55; }
 }

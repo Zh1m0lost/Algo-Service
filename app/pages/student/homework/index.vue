@@ -8,7 +8,7 @@ definePageMeta({ layout: 'student' })
 
 // TODO: заменить на useFetch('/api/student/homework')
 const data = {
-  stats: { total: 5, inProgress: 2, completed: 3 },
+  stats: { total: 6, inProgress: 2, completed: 3 },
   items: [
     {
       id: 1,
@@ -53,6 +53,15 @@ const data = {
       description: 'Создать сложный макет с использованием CSS Grid. Реализовать адаптивную сетку без медиа-запросов.',
       deadline: '2 мая 2026 г.',
       points: 60,
+      status: 'pending'
+    },
+    {
+      id: 12,
+      title: 'Лендинг на HTML&CSS',
+      subject: 'Frontend разработка',
+      description: 'Создать полноценную landing page для продукта или стартапа на выбор. Семантика, CSS-переменные, Grid, Flexbox, hover-эффекты, адаптивность — без CSS-фреймворков.',
+      deadline: '28 апреля 2026 г.',
+      points: 100,
       status: 'pending'
     }
   ]

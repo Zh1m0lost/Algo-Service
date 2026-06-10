@@ -166,7 +166,6 @@ const currentTasks = computed(() => data.tasks[activeTab.value])
           <p v-if="currentTasks.length === 0" class="td-task__empty">Задач нет</p>
         </div>
 
-        <button class="td-all-tasks-btn">Все задачи</button>
       </div>
 
     </div>
@@ -326,7 +325,7 @@ const currentTasks = computed(() => data.tasks[activeTab.value])
   display: grid;
   grid-template-columns: 1fr 400px;
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 
 /* Card */
@@ -415,7 +414,6 @@ const currentTasks = computed(() => data.tasks[activeTab.value])
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 80px;
   margin-bottom: 16px;
 }
 
@@ -457,21 +455,6 @@ const currentTasks = computed(() => data.tasks[activeTab.value])
   }
 }
 
-.td-all-tasks-btn {
-  width: 100%;
-  padding: 10px;
-  border-radius: var(--radius-sm);
-  background: var(--c-purple-light);
-  border: none;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--c-purple-text);
-  cursor: pointer;
-  font-family: var(--font-main);
-  transition: opacity 0.2s;
-
-  &:hover { opacity: 0.8; }
-}
 
 /* Buttons */
 .td-btn {
