@@ -54,8 +54,6 @@ function goHome() {
 </template>
 
 <style lang="scss">
-@import '~/assets/css/main.scss';
-
 .err-page {
   min-height: 100vh;
   background: var(--c-purple);

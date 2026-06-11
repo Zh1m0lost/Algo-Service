@@ -5,7 +5,7 @@ type Student = { id:number; initials:string; color:string; name:string; group:st
 
 const avatarColors = ['#F5A623','#7B5EA7','#E8823A','#D4A017','#6B8FA8','#5B7EA6','#3A9A8A','#4A8C5C','#57A86B','#A07BC0']
 
-const items = useState<Student[]>('adminStudents', () => [
+const items = ref<Student[]>([
   { id:1, initials:'АК', color:'#F5A623', name:'Анна Кузьмина',    group:'Algo-Jr-3',     parent:'Ольга Кузьмина',    phone:'+7 (916) 234-12-99', payment:'paid',    points:1240 },
   { id:2, initials:'МС', color:'#7B5EA7', name:'Михаил Соколов',   group:'WebDev-2024-A', parent:'Игорь Соколов',     phone:'+7 (903) 110-44-21', payment:'overdue', points:860  },
   { id:3, initials:'ПЛ', color:'#E8823A', name:'Полина Лебедева',  group:'Front-Adv-1',   parent:'Ирина Лебедева',    phone:'+7 (925) 770-09-08', payment:'paid',    points:1820 },
@@ -183,11 +183,3 @@ function submitAdd() {
 
   </div>
 </template>
-
-<style lang="scss">
-.al-person {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-</style>

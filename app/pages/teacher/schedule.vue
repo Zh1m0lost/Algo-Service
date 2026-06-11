@@ -80,6 +80,7 @@ function openLesson(lesson: typeof data.lessons[0]) {
     </div>
 
     <!-- Сетка расписания -->
+    <div class="sch-grid-wrap">
     <div class="sch-grid">
       <!-- Шапка: дни -->
       <div class="sch-grid__corner" />
@@ -117,6 +118,7 @@ function openLesson(lesson: typeof data.lessons[0]) {
           </div>
         </div>
       </template>
+    </div>
     </div>
 
     <!-- Задачи на неделю -->
@@ -204,13 +206,17 @@ function openLesson(lesson: typeof data.lessons[0]) {
 }
 
 /* ── Сетка ─────────────────────────── */
+.sch-grid-wrap {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid #E8E8E8;
+  background: var(--c-white);
+}
+
 .sch-grid {
   display: grid;
   grid-template-columns: 72px repeat(5, 1fr);
   background: var(--c-white);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid #E8E8E8;
 }
 
 .sch-grid__corner {
@@ -411,49 +417,43 @@ function openLesson(lesson: typeof data.lessons[0]) {
 }
 
 @media (max-width: 768px) {
-  /* Расписание — горизонтальный скролл */
-  .sch-grid {
-    display: block;
+  .sch-grid-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-
-    /* Восстанавливаем grid внутри скролл-обёртки */
-    > * {
-      display: contents;
-    }
   }
 
-  /* Проще: обернуть в div-обёртку со скроллом */
   .sch-grid {
-    display: grid;
-    grid-template-columns: 56px repeat(5, minmax(90px, 1fr));
-    min-width: 520px;
-  }
-
-  /* Обёртка для скролла */
-  .sch > .sch-grid {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    border-radius: var(--radius-md);
+    grid-template-columns: 56px repeat(5, minmax(88px, 1fr));
+    min-width: 500px;
   }
 
   .sch-grid__time { font-size: 11px; padding: 6px 2px; }
-
   .sch-grid__day-num { font-size: 16px; }
+  .sch-grid__day-head { padding: 10px 6px; }
 
   .sch-lesson {
     padding: 6px 8px;
+    min-height: 60px;
     &__group { font-size: 11px; }
     &__subject { font-size: 10px; }
+    &__arrow { display: none; }
   }
 
-  /* Канбан — стек */
-  .sch-kanban { grid-template-columns: 1fr; }
+  .sch-kanban { grid-template-columns: 1fr; gap: 16px; }
+
+  .sch-col__label { margin-bottom: 2px; }
+
+  .sch-task {
+    padding: 12px 14px;
+    &__title { font-size: 13px; }
+  }
 }
 
 @media (max-width: 480px) {
   .sch__title { font-size: 20px; }
-
-  .sch-grid { grid-template-columns: 48px repeat(5, minmax(72px, 1fr)); }
+  .sch-grid { grid-template-columns: 44px repeat(5, minmax(70px, 1fr)); min-width: 394px; }
+  .sch-grid__day-num { font-size: 15px; }
+  .sch-grid__corner,
+  .sch-grid__day-head { padding: 8px 4px; }
 }
 </style>

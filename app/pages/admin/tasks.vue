@@ -18,7 +18,7 @@ const recurrenceOptions = [
   { label:'Ежедневно · Каждый рабочий день',  cls:'tk-pill--green'  },
 ]
 
-const items = useState<Task[]>('adminTasks', () => [
+const items = ref<Task[]>([
   {
     id:1, title:'Финальный проект — Лендинг',
     desc:'Разработать адаптивный landing page по требованиям из ТЗ. Сдача через GitHub Pages, после самопроверки.',

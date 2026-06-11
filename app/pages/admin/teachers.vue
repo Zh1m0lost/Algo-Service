@@ -5,7 +5,7 @@ type Teacher = { id:number; initials:string; color:string; name:string; subject:
 
 const avatarColors = ['#F5A623','#7B5EA7','#E8823A','#D4A017','#6B8FA8','#3A9A8A','#8A8A9A','#A07BC0','#5B7EA6']
 
-const items = useState<Teacher[]>('adminTeachers', () => [
+const items = ref<Teacher[]>([
   { id:1, initials:'АВ', color:'#F5A623', name:'Алексей Воронцов',  subject:'Программирование (Python)', email:'alex.v@algorithmika.ru',  phone:'+7 (916) 555-12-34', status:'active',    rate:1450 },
   { id:2, initials:'ЕГ', color:'#7B5EA7', name:'Екатерина Громова', subject:'Web-разработка',            email:'e.gromova@algo.ru',        phone:'+7 (903) 220-45-67', status:'active',    rate:1580 },
   { id:3, initials:'ДС', color:'#E8823A', name:'Дмитрий Соболев',   subject:'Robotics',                  email:'d.sobolev@algo.ru',        phone:'+7 (925) 780-90-12', status:'probation', rate:1200 },

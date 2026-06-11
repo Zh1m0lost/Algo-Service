@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { assignPair, countCorrect } from '~/utils/matchTask'
 definePageMeta({ layout: 'teacher' })
 
 // Редактор
@@ -48,19 +49,7 @@ function clickLeft(idx: number) {
 
 function clickRight(rIdx: number) {
   if (selectedLeft.value === null) return
-  const lIdx = selectedLeft.value
-
-  // Снять предыдущее назначение этого правого слота
-  for (const [k, v] of Object.entries(assignments.value)) {
-    if (v === rIdx) { delete assignments.value[+k] }
-  }
-  // Если уже назначен — снять
-  if (assignments.value[lIdx] === rIdx) {
-    delete assignments.value[lIdx]
-  } else {
-    assignments.value[lIdx] = rIdx
-  }
-  assignments.value = { ...assignments.value }
+  assignments.value = assignPair(assignments.value, selectedLeft.value, rIdx)
   selectedLeft.value = null
 }
 
@@ -81,9 +70,7 @@ function getLeftForRight(rIdx: number) {
   return e ? leftItems.value[+e[0]]?.value : null
 }
 
-const correctCount = computed(() =>
-  Object.entries(assignments.value).filter(([l, r]) => +l === +r).length
-)
+const correctCount = computed(() => countCorrect(assignments.value))
 const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.value.length))
 
 const savedToast = ref(false)

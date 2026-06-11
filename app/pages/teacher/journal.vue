@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { avg } from '~/utils/grades'
 definePageMeta({ layout: 'teacher' })
 
 // TODO: заменить на useFetch('/api/teacher/journal?group=' + selectedGroup.value)
@@ -52,13 +53,6 @@ const cellBg: Record<number, string> = {
 
 function gradeBg(g: number | null) {
   return g ? cellBg[g] ?? '#fff' : '#fff'
-}
-
-// Средний балл и его цвет
-function avg(grades: (number | null)[]) {
-  const vals = grades.filter(g => g !== null) as number[]
-  if (!vals.length) return null
-  return +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
 }
 
 function avgColor(a: number | null) {
