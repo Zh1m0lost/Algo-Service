@@ -1,62 +1,55 @@
 <script setup lang="ts">
 import { assignPair, countCorrect } from '~/utils/matchTask'
+
 definePageMeta({ layout: 'teacher' })
 
-// Редактор
-const taskName = ref('Распределите методы массива по их назначению')
-const points   = ref(25)
+type Pair = { id: number; left: string; right: string }
 
-const leftItems = ref([
-  { id: 1, label: 'Метод 1', value: 'map()'    },
-  { id: 2, label: 'Метод 2', value: 'filter()'  },
-  { id: 3, label: 'Метод 3', value: 'reduce()'  },
-  { id: 4, label: 'Метод 4', value: 'find()'    }
-])
+let nextId = 1
+const blankPair = (): Pair => ({ id: nextId++, left: '', right: '' })
 
-const rightItems = ref([
-  { id: 1, label: 'Вариант 1',  value: 'Возвращает новый массив'  },
-  { id: 2, label: 'Вариант 2',  value: 'Фильтрует элементы'       },
-  { id: 3, label: 'Вариант 3',  value: 'Возвращает одно значение' },
-  { id: 4, label: 'Вариант 4',  value: 'Находит первый элемент'   }
-])
+const taskName = ref('')
+const points   = ref(20)
+const pairs    = ref<Pair[]>([blankPair(), blankPair(), blankPair()])
 
-let nextLeftId  = 5
-let nextRightId = 5
+// Для превью и сохранения берём только полностью заполненные пары.
+const completePairs = computed(() => pairs.value.filter(p => p.left.trim() && p.right.trim()))
+const leftItems  = computed(() => completePairs.value.map(p => ({ id: p.id, value: p.left.trim() })))
+const rightItems = computed(() => completePairs.value.map(p => ({ id: p.id, value: p.right.trim() })))
 
-function addLeft() {
-  leftItems.value.push({ id: nextLeftId++, label: `Метод ${leftItems.value.length + 1}`, value: '' })
+function addPair() {
+  pairs.value.push(blankPair())
 }
-function addRight() {
-  rightItems.value.push({ id: nextRightId++, label: `Вариант ${rightItems.value.length + 1}`, value: '' })
-}
-function removeLeft(id: number) {
-  leftItems.value = leftItems.value.filter(i => i.id !== id)
-  assignments.value = {}
-}
-function removeRight(id: number) {
-  rightItems.value = rightItems.value.filter(i => i.id !== id)
-  assignments.value = {}
+function removePair(id: number) {
+  pairs.value = pairs.value.filter(p => p.id !== id)
+  if (!pairs.value.length) pairs.value.push(blankPair())
 }
 
-// Превью — логика сопоставления
-// assignments: leftIndex → rightIndex
+// ── Превью: интерактивная проверка сопоставления ──
+// assignments: индекс слева → индекс справа; правильная пара — одинаковые индексы.
 const assignments  = ref<Record<number, number>>({})
 const selectedLeft = ref<number | null>(null)
+
+function resetPreview() {
+  assignments.value = {}
+  selectedLeft.value = null
+}
+
+// Если набор заполненных пар изменился — сбрасываем превью, чтобы индексы не разъезжались.
+watch(() => completePairs.value.length, resetPreview)
 
 function clickLeft(idx: number) {
   selectedLeft.value = selectedLeft.value === idx ? null : idx
 }
-
 function clickRight(rIdx: number) {
   if (selectedLeft.value === null) return
   assignments.value = assignPair(assignments.value, selectedLeft.value, rIdx)
   selectedLeft.value = null
 }
 
-function isLeftAssigned(idx: number)  { return idx in assignments.value }
 function isRightAssigned(rIdx: number) { return Object.values(assignments.value).includes(rIdx) }
-function isLeftCorrect(lIdx: number)  { return lIdx in assignments.value && assignments.value[lIdx] === lIdx }
-function isLeftWrong(lIdx: number)    { return lIdx in assignments.value && assignments.value[lIdx] !== lIdx }
+function isLeftCorrect(lIdx: number)   { return lIdx in assignments.value && assignments.value[lIdx] === lIdx }
+function isLeftWrong(lIdx: number)     { return lIdx in assignments.value && assignments.value[lIdx] !== lIdx }
 function isRightCorrect(rIdx: number) {
   const e = Object.entries(assignments.value).find(([, v]) => v === rIdx)
   return e ? +e[0] === rIdx : false
@@ -71,28 +64,55 @@ function getLeftForRight(rIdx: number) {
 }
 
 const correctCount = computed(() => countCorrect(assignments.value))
-const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.value.length))
+const totalPairs   = computed(() => Math.min(leftItems.value.length, rightItems.value.length))
 
-const savedToast = ref(false)
+// ── Валидация и сохранение ──
+const canSave = computed(() =>
+  taskName.value.trim().length > 0 && completePairs.value.length >= 2 && points.value > 0,
+)
+
+const saving = ref(false)
+const toast  = reactive({ show: false, text: '', ok: true })
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
+function showToast(text: string, ok = true) {
+  if (toastTimer) clearTimeout(toastTimer)
+  toast.text = text
+  toast.ok = ok
+  toast.show = true
+  toastTimer = setTimeout(() => { toast.show = false }, 2500)
+}
+
+function clearAll() {
+  taskName.value = ''
+  points.value = 20
+  pairs.value = [blankPair(), blankPair()]
+  resetPreview()
+}
+
 async function saveTask() {
+  if (!canSave.value) {
+    showToast('Заполните название и минимум 2 полные пары', false)
+    return
+  }
+  saving.value = true
   try {
     await useApi()('/teacher/tasks', {
       method: 'POST',
       body: {
-        name: taskName.value,
+        name: taskName.value.trim(),
         points: points.value,
-        leftItems: leftItems.value,
-        rightItems: rightItems.value,
+        leftItems:  leftItems.value.map(i => ({ value: i.value })),
+        rightItems: rightItems.value.map(i => ({ value: i.value })),
       },
     })
+    showToast('Задание сохранено')
+    clearAll()
   } catch {
-    // ошибку сохранения тоже подсветим тостом ниже
+    showToast('Не удалось сохранить задание', false)
+  } finally {
+    saving.value = false
   }
-  if (toastTimer) clearTimeout(toastTimer)
-  savedToast.value = true
-  toastTimer = setTimeout(() => { savedToast.value = false }, 2500)
 }
 </script>
 
@@ -101,48 +121,47 @@ async function saveTask() {
 
     <!-- ── Редактор ──────────────────────────────── -->
     <div class="con-editor">
-      <h1 class="con-editor__title">Конструктор задач</h1>
-
-      <!-- Название задания -->
-      <div class="con-name-wrap">
-        <span class="con-name-label">Название задания:</span>
-        <input v-model="taskName" class="con-name-input" />
+      <div class="con-editor__head">
+        <h1 class="con-editor__title">Конструктор задач</h1>
+        <span class="con-editor__type">Тип: сопоставление</span>
       </div>
 
-      <div class="con-cols">
-
-        <!-- Левая колонка -->
-        <div class="con-col">
-          <p class="con-col__head">Элементы для сопоставления</p>
-          <div class="con-items">
-            <div v-for="(item, idx) in leftItems" :key="item.id" class="con-item">
-              <span class="con-item__label">{{ item.label }}:</span>
-              <input v-model="item.value" class="con-item__input" :placeholder="`Элемент ${idx + 1}`" />
-              <button class="con-item__del" @click="removeLeft(item.id)">🗑️</button>
-            </div>
-          </div>
-          <button class="con-add-btn" @click="addLeft">+ Добавить вариант</button>
-        </div>
-
-        <!-- Правая колонка -->
-        <div class="con-col">
-          <p class="con-col__head">Варианты ответов</p>
-          <div class="con-items">
-            <div v-for="(item, idx) in rightItems" :key="item.id" class="con-item">
-              <span class="con-item__label">{{ item.label }}:</span>
-              <input v-model="item.value" class="con-item__input" :placeholder="`Описание ${idx + 1}`" />
-              <button class="con-item__del" @click="removeRight(item.id)">🗑️</button>
-            </div>
-          </div>
-          <button class="con-add-btn" @click="addRight">+ Добавить вариант</button>
-        </div>
-
+      <!-- Название и баллы -->
+      <div class="con-meta">
+        <label class="con-field con-field--grow">
+          <span class="con-field__label">Название задания</span>
+          <input
+            v-model="taskName"
+            class="con-field__input"
+            placeholder="Например: сопоставьте методы массива с их назначением"
+          />
+        </label>
+        <label class="con-field">
+          <span class="con-field__label">Баллы</span>
+          <input v-model.number="points" type="number" min="1" class="con-field__input con-field__input--num" />
+        </label>
       </div>
 
-      <!-- Баллы -->
-      <div class="con-points">
-        <span class="con-points__label">Баллы на задание:</span>
-        <input v-model.number="points" class="con-points__input" type="number" min="1" />
+      <!-- Пары -->
+      <div class="con-pairs">
+        <p class="con-hint">
+          Каждая строка — правильная пара: слева элемент, справа верное соответствие. Нужно минимум 2 пары.
+        </p>
+
+        <div class="con-pairs__head">
+          <span>Элемент</span>
+          <span>Правильное соответствие</span>
+        </div>
+
+        <div v-for="(pair, idx) in pairs" :key="pair.id" class="con-pair">
+          <span class="con-pair__num">{{ idx + 1 }}</span>
+          <input v-model="pair.left" class="con-pair__input" :placeholder="`Элемент ${idx + 1}`" />
+          <span class="con-pair__arrow">↔</span>
+          <input v-model="pair.right" class="con-pair__input" :placeholder="`Соответствие ${idx + 1}`" />
+          <button class="con-pair__del" title="Удалить пару" @click="removePair(pair.id)">🗑️</button>
+        </div>
+
+        <button class="con-add-btn" @click="addPair">+ Добавить пару</button>
       </div>
     </div>
 
@@ -206,23 +225,27 @@ async function saveTask() {
         </div>
 
         <!-- Счёт -->
-        <div class="con-preview__score">
-          Сопоставлено (верно): {{ correctCount }} / {{ totalPairs }}
+        <div class="con-preview__score-row">
+          <span class="con-preview__score">Сопоставлено (верно): {{ correctCount }} / {{ totalPairs }}</span>
+          <button class="con-reset-btn" @click="resetPreview">Сбросить</button>
         </div>
 
       </div>
     </div>
 
-    <!-- Сохранить -->
+    <!-- Действия -->
     <div class="con-footer">
-      <button class="con-save-btn" @click="saveTask">Сохранить задание</button>
+      <button class="con-clear-btn" @click="clearAll">Очистить</button>
+      <button class="con-save-btn" :disabled="!canSave || saving" @click="saveTask">
+        {{ saving ? 'Сохранение…' : 'Сохранить задание' }}
+      </button>
     </div>
 
   </div>
 
   <!-- Toast -->
   <Transition name="toast">
-    <div v-if="savedToast" class="con-toast">Задание сохранено</div>
+    <div v-if="toast.show" class="con-toast" :class="{ 'con-toast--error': !toast.ok }">{{ toast.text }}</div>
   </Transition>
 </template>
 
@@ -557,10 +580,12 @@ async function saveTask() {
   font-weight: 600;
 }
 
-/* ── Кнопка сохранить ───────────────────────── */
+/* ── Кнопки действий ───────────────────────── */
 .con-footer {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .con-save-btn {
@@ -611,9 +636,10 @@ async function saveTask() {
 
   .con-name-input { width: 100%; }
 
-  .con-footer { justify-content: stretch; }
+  .con-footer { flex-direction: column-reverse; }
 
-  .con-save-btn { width: 100%; }
+  .con-save-btn,
+  .con-clear-btn { width: 100%; }
 }
 
 @media (max-width: 480px) {
@@ -621,5 +647,206 @@ async function saveTask() {
     flex-wrap: wrap;
     &__label { min-width: 100%; }
   }
+}
+
+/* ── Шапка редактора ── */
+.con-editor__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.con-editor__type {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-purple-text);
+  background: var(--c-purple-light);
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+}
+
+/* ── Название + баллы ── */
+.con-meta {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.con-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &--grow { flex: 1; min-width: 240px; }
+
+  &__label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--c-text-gray);
+  }
+
+  &__input {
+    border: 1.5px solid #E0E0E0;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: var(--font-main);
+    color: var(--c-text-dark);
+    outline: none;
+    transition: border-color 0.2s;
+
+    &:focus { border-color: var(--c-purple); }
+    &--num { width: 90px; }
+  }
+}
+
+/* ── Пары ── */
+.con-pairs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.con-hint {
+  font-size: 13px;
+  color: var(--c-text-gray);
+  background: var(--c-bg);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.con-pairs__head {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px 1fr 36px;
+  gap: 10px;
+  padding: 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-text-gray);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  span:first-of-type { grid-column: 2; }
+  span:last-of-type  { grid-column: 4; }
+}
+
+.con-pair {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px 1fr 36px;
+  gap: 10px;
+  align-items: center;
+
+  &__num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--c-purple-light);
+    color: var(--c-purple-text);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1.5px solid #E0E0E0;
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: var(--font-main);
+    color: var(--c-text-dark);
+    outline: none;
+    transition: border-color 0.2s;
+
+    &:focus { border-color: var(--c-purple); }
+  }
+
+  &__arrow {
+    text-align: center;
+    color: var(--c-purple-text);
+    font-size: 16px;
+  }
+
+  &__del {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    &:hover { opacity: 1; }
+  }
+}
+
+/* ── Счёт превью + сброс ── */
+.con-preview__score-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.con-reset-btn {
+  padding: 7px 18px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--c-purple-text);
+  background: transparent;
+  color: var(--c-purple-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-main);
+  transition: background 0.15s;
+  &:hover { background: rgba(255, 255, 255, 0.5); }
+}
+
+/* ── Очистить + disabled + ошибка ── */
+.con-clear-btn {
+  padding: 12px 28px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  border: 1.5px solid #D0D0D0;
+  color: var(--c-text-dark);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-main);
+  transition: border-color 0.2s, color 0.2s;
+  &:hover { border-color: var(--c-purple-text); color: var(--c-purple-text); }
+}
+
+.con-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.con-toast--error { background: var(--c-red); }
+
+/* ── Адаптив пар ── */
+@media (max-width: 600px) {
+  .con-pairs__head { display: none; }
+
+  .con-pair {
+    grid-template-columns: 28px 1fr 36px;
+    grid-template-areas:
+      "num left del"
+      "num right del";
+    row-gap: 8px;
+
+    &__num   { grid-area: num; align-self: start; }
+    &__del   { grid-area: del; align-self: start; }
+    &__arrow { display: none; }
+  }
+
+  .con-pair__input:nth-of-type(1) { grid-area: left; }
+  .con-pair__input:nth-of-type(2) { grid-area: right; }
 }
 </style>
