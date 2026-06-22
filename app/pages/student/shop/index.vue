@@ -135,8 +135,9 @@ function shortage(price: number) {
           </span>
 
           <!-- Картинка -->
-          <div class="shop-product__img" :style="{ background: product.bg }">
-            <span class="shop-product__emoji">{{ product.emoji }}</span>
+          <div class="shop-product__img" :style="product.image ? {} : { background: product.bg }">
+            <img v-if="product.image" :src="product.image" :alt="product.title" class="shop-product__photo" />
+            <span v-else class="shop-product__emoji">{{ product.emoji }}</span>
           </div>
 
           <!-- Инфо -->
@@ -434,6 +435,13 @@ function shortage(price: number) {
   }
 
   &__emoji { font-size: 56px; line-height: 1; }
+
+  &__photo {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+  }
 
   &__body { flex: 1; }
 

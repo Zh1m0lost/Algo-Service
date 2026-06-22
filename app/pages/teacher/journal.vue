@@ -84,66 +84,27 @@ function resetForm() {
 // Дропдаун группы
 const groupOpen = ref(false)
 
-function exportSvg() {
-  const colW   = [200, ...subjects.value.map(() => 110), 130, 120]
-  const rowH   = 48
-  const headH  = 52
-  const pad    = 16
-  const totalW = colW.reduce((a, b) => a + b, 0)
-  const totalH = headH + students.value.length * rowH
+function exportCsv() {
+  const escape = (v: unknown) => {
+    const str = String(v ?? '')
+    return /[",;\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
+  }
 
-  const x = (col: number) => colW.slice(0, col).reduce((a, b) => a + b, 0)
+  const header = ['Ученик', ...subjects.value, 'Итого баллов', 'Средний балл']
+  const rows = students.value.map((s: any) => [
+    s.name,
+    ...subjects.value.map((_, i) => s.grades[i] ?? ''),
+    s.points,
+    avg(s.grades) ?? '',
+  ])
 
-  const gradeFill: Record<number, string> = { 5: '#D8F5D0', 4: '#D0E8FF', 3: '#EDE7FF', 2: '#FFE0E0' }
-
-  const cols = ['Ученик', ...subjects.value, 'Итого баллов', 'Средний балл']
-
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" font-family="Arial, sans-serif">`
-  svg += `<rect width="${totalW}" height="${totalH}" fill="#fff"/>`
-
-  // Заголовок
-  cols.forEach((col, ci) => {
-    svg += `<rect x="${x(ci)}" y="0" width="${colW[ci]}" height="${headH}" fill="#F8F8F8" stroke="#EBEBEB" stroke-width="1"/>`
-    svg += `<text x="${x(ci) + colW[ci] / 2}" y="${headH / 2 + 5}" text-anchor="middle" font-size="13" font-weight="600" fill="#333">${col}</text>`
-  })
-
-  // Строки
-  students.value.forEach((s, ri) => {
-    const y = headH + ri * rowH
-    const a = avg(s.grades)
-
-    const avgFill = a === null ? '#BBB' : a >= 4.5 ? '#4CAF50' : a >= 4.0 ? '#333' : a >= 3.5 ? '#6B48FF' : '#E53935'
-
-    // Имя
-    svg += `<rect x="${x(0)}" y="${y}" width="${colW[0]}" height="${rowH}" fill="#fff" stroke="#F0F0F0" stroke-width="1"/>`
-    svg += `<text x="${x(0) + pad}" y="${y + rowH / 2 + 5}" font-size="14" font-weight="500" fill="#333">${s.name}</text>`
-
-    // Оценки
-    subjects.value.forEach((_, si) => {
-      const g = s.grades[si]
-      const fill = g ? gradeFill[g] ?? '#fff' : '#fff'
-      svg += `<rect x="${x(si + 1)}" y="${y}" width="${colW[si + 1]}" height="${rowH}" fill="${fill}" stroke="#F0F0F0" stroke-width="1"/>`
-      svg += `<text x="${x(si + 1) + colW[si + 1] / 2}" y="${y + rowH / 2 + 6}" text-anchor="middle" font-size="18" font-weight="700" fill="#333">${g ?? '—'}</text>`
-    })
-
-    // Баллы
-    const pc = subjects.value.length + 1
-    svg += `<rect x="${x(pc)}" y="${y}" width="${colW[pc]}" height="${rowH}" fill="#fff" stroke="#F0F0F0" stroke-width="1"/>`
-    svg += `<text x="${x(pc) + colW[pc] / 2}" y="${y + rowH / 2 + 5}" text-anchor="middle" font-size="15" font-weight="700" fill="#B87A00">${s.points.toLocaleString('ru')}</text>`
-
-    // Средний
-    const ac = subjects.value.length + 2
-    svg += `<rect x="${x(ac)}" y="${y}" width="${colW[ac]}" height="${rowH}" fill="#fff" stroke="#F0F0F0" stroke-width="1"/>`
-    svg += `<text x="${x(ac) + colW[ac] / 2}" y="${y + rowH / 2 + 5}" text-anchor="middle" font-size="15" font-weight="700" fill="${avgFill}">${a ?? '—'}</text>`
-  })
-
-  svg += '</svg>'
-
-  const blob = new Blob([svg], { type: 'image/svg+xml' })
+  // Разделитель «;» и BOM — чтобы Excel корректно открыл кириллицу.
+  const csv = [header, ...rows].map(r => r.map(escape).join(';')).join('\r\n')
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
   a.href     = url
-  a.download = `journal-${selectedGroup.value}.svg`
+  a.download = `journal-${selectedGroup.value || 'group'}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -175,7 +136,7 @@ function exportSvg() {
         </div>
 
         <!-- Экспорт -->
-        <button class="jrn-export-btn" @click="exportSvg">⬇ Экспорт SVG</button>
+        <button class="jrn-export-btn" @click="exportCsv">⬇ Экспорт CSV</button>
       </div>
     </div>
 

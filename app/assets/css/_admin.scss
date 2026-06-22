@@ -194,3 +194,75 @@
   .al-tab { padding: 6px 12px; font-size: 12px; }
   .al-search__input { width: 110px; }
 }
+
+/* ── Кликабельные строки списков ── */
+.al-table__row--link { cursor: pointer; transition: background 0.12s; }
+.al-table__row--link:hover { background: var(--c-purple-light); }
+
+/* ── Детальные страницы (ученик/группа/преподаватель) ── */
+.al-toast--error { background: var(--c-red); }
+
+.dt-page { display: flex; flex-direction: column; gap: 16px; padding-bottom: 20px; padding-top: 4px; }
+
+.dt-back {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--c-white); border: 1.5px solid #E0E0E0; border-radius: var(--radius-full);
+  padding: 8px 16px; font-size: 14px; font-weight: 600; color: var(--c-text-dark);
+  cursor: pointer; font-family: var(--font-main); transition: border-color 0.15s, color 0.15s;
+  &:hover { border-color: var(--c-purple-text); color: var(--c-purple-text); }
+}
+
+.dt-grid { display: grid; grid-template-columns: 1fr 360px; gap: 16px; align-items: start; }
+.dt-col { display: flex; flex-direction: column; gap: 16px; }
+
+.dt-card {
+  background: var(--c-white); border-radius: var(--radius-md); padding: 24px 28px;
+  display: flex; flex-direction: column; gap: 16px;
+  &__title { font-size: 16px; font-weight: 700; color: var(--c-text-dark); }
+  &__label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--c-purple-text); }
+}
+
+.dt-head { display: flex; align-items: center; gap: 16px; }
+.dt-avatar {
+  width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--c-white); font-size: 18px; font-weight: 700;
+}
+.dt-head__name { font-family: var(--font-heading); font-size: 20px; font-weight: 800; color: var(--c-text-dark); }
+.dt-head__sub { font-size: 14px; color: var(--c-text-gray); margin-top: 2px; }
+
+.dt-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.dt-field {
+  display: flex; flex-direction: column; gap: 6px;
+  &--full { grid-column: 1 / -1; }
+  &__label { font-size: 13px; color: var(--c-text-gray); font-weight: 500; }
+  &__input, &__select {
+    width: 100%; box-sizing: border-box;
+    border: 1.5px solid #E0E0E0; border-radius: var(--radius-sm); padding: 10px 14px;
+    font-size: 14px; font-family: var(--font-main); color: var(--c-text-dark); outline: none;
+    background: var(--c-white); transition: border-color 0.2s;
+    &:focus { border-color: var(--c-purple); }
+  }
+}
+
+.dt-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.dt-btn {
+  padding: 11px 26px; border-radius: var(--radius-full); font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: var(--font-main); border: none; transition: opacity 0.2s, background 0.2s, border-color 0.2s;
+  &--save { background: var(--c-purple-text); color: var(--c-white); &:hover { opacity: 0.88; } &:disabled { opacity: 0.5; cursor: not-allowed; } }
+  &--del { background: transparent; border: 1.5px solid var(--c-red); color: var(--c-red); &:hover { background: var(--c-red-light); } }
+}
+
+.dt-list { display: flex; flex-direction: column; gap: 8px; }
+.dt-list__item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; border-radius: var(--radius-sm); background: var(--c-bg);
+  font-size: 14px; color: var(--c-text-dark); text-decoration: none;
+  &--link { cursor: pointer; transition: background 0.12s; &:hover { background: var(--c-purple-light); } }
+}
+.dt-list__meta { font-size: 13px; color: var(--c-text-gray); }
+.dt-empty { font-size: 14px; color: var(--c-text-gray); text-align: center; padding: 16px 0; }
+
+@media (max-width: 900px) { .dt-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .dt-form { grid-template-columns: 1fr; } }

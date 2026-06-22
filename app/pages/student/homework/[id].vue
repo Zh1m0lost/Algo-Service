@@ -46,6 +46,11 @@ const newComment   = ref('')
 const dragOver     = ref(false)
 const selectedFile = ref<File | null>(null)
 const fileInput    = ref<HTMLInputElement | null>(null)
+const actionError  = ref('')
+const uploading    = ref(false)
+
+// Сбрасываем ошибку при открытии модалки.
+watch(showEditModal, (v) => { if (v) actionError.value = '' })
 
 function openFilePicker() {
   fileInput.value?.click()
@@ -58,40 +63,64 @@ function onDrop(e: DragEvent) {
 }
 
 function onFileChange(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
   if (file) selectedFile.value = file
+  input.value = '' // чтобы можно было выбрать тот же файл повторно
 }
 
 async function saveAnswer() {
-  if (selectedFile.value) {
+  if (!selectedFile.value) { actionError.value = 'Сначала выберите файл.'; return }
+  actionError.value = ''
+  uploading.value = true
+  try {
     const form = new FormData()
     form.append('file', selectedFile.value)
     const res = await api<any>(`/student/homework/${id}/answer`, { method: 'POST', body: form })
     Object.assign(answer, res.answer)
+    showEditModal.value = false
+    selectedFile.value  = null
+  } catch (e: any) {
+    actionError.value =
+      e?.data?.errors?.file?.[0] ||
+      e?.data?.message ||
+      'Не удалось загрузить файл. Проверьте размер (до 20 МБ) и попробуйте снова.'
+  } finally {
+    uploading.value = false
   }
-  showEditModal.value = false
-  selectedFile.value  = null
 }
 
 async function deleteAnswer() {
-  const res = await api<any>(`/student/homework/${id}/answer`, { method: 'DELETE' })
-  Object.assign(answer, res.answer)
+  try {
+    const res = await api<any>(`/student/homework/${id}/answer`, { method: 'DELETE' })
+    Object.assign(answer, res.answer)
+  } catch {
+    // тихо — состояние обновится при следующем заходе
+  }
   showDeleteConfirm.value = false
 }
 
 async function sendComment() {
   if (!newComment.value.trim()) return
-  const comment = await api<any>(`/student/homework/${id}/comments`, {
-    method: 'POST',
-    body: { text: newComment.value.trim() },
-  })
-  comments.value.push(comment)
-  newComment.value = ''
+  try {
+    const comment = await api<any>(`/student/homework/${id}/comments`, {
+      method: 'POST',
+      body: { text: newComment.value.trim() },
+    })
+    comments.value.push(comment)
+    newComment.value = ''
+  } catch {
+    // оставляем текст в поле, чтобы пользователь не потерял ввод
+  }
 }
 
 async function deleteComment(commentId: string) {
-  await api(`/student/homework/${id}/comments/${commentId}`, { method: 'DELETE' })
-  comments.value = comments.value.filter(c => c.id !== commentId)
+  try {
+    await api(`/student/homework/${id}/comments/${commentId}`, { method: 'DELETE' })
+    comments.value = comments.value.filter(c => c.id !== commentId)
+  } catch {
+    // ignore
+  }
 }
 </script>
 
@@ -261,9 +290,13 @@ async function deleteComment(commentId: string) {
             </div>
           </div>
 
+          <p v-if="actionError" class="hw-modal__error">{{ actionError }}</p>
+
           <div class="hw-modal__footer">
             <button class="hw-btn hw-btn--outline" @click="showEditModal = false">Отмена</button>
-            <button class="hw-btn hw-btn--filled" @click="saveAnswer">Сохранить</button>
+            <button class="hw-btn hw-btn--filled" :disabled="uploading" @click="saveAnswer">
+              {{ uploading ? 'Загрузка…' : 'Сохранить' }}
+            </button>
           </div>
         </div>
       </div>
@@ -630,6 +663,8 @@ async function deleteComment(commentId: string) {
   border: none;
   font-family: var(--font-main);
 
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
   &--outline {
     border: 1.5px solid var(--c-purple-text);
     color: var(--c-purple-text);
@@ -711,6 +746,13 @@ async function deleteComment(commentId: string) {
     color: var(--c-text-gray);
     text-align: center;
     margin-bottom: 24px;
+  }
+
+  &__error {
+    font-size: 13px;
+    color: var(--c-red);
+    text-align: center;
+    margin-bottom: 12px;
   }
 
   &__file-section {

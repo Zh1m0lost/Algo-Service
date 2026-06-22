@@ -10,6 +10,36 @@ const loading = ref(false)
 
 const error = ref('')
 
+// ── Быстрый вход под демо-ролью ──
+const showRoleModal = ref(false)
+const quickLoading  = ref('')
+
+const DEMO: Record<string, { login: string; password: string; label: string; icon: string }> = {
+  admin:   { login: 'admin', password: 'qq', label: 'Администратор', icon: '🛡️' },
+  teacher: { login: 'pd',    password: 'qq', label: 'Преподаватель', icon: '📚' },
+  student: { login: 'std',   password: 'qq', label: 'Ученик',        icon: '🎓' },
+}
+
+async function quickLogin(key: string) {
+  const cred = DEMO[key]
+  if (!cred) return
+  // Подставляем данные в форму и отправляем её под выбранной ролью.
+  login.value = cred.login
+  password.value = cred.password
+  error.value = ''
+  quickLoading.value = key
+  try {
+    const user = await signIn(cred.login, cred.password)
+    showRoleModal.value = false
+    await navigateTo(homePath(user.role))
+  } catch (e: any) {
+    error.value = e?.data?.message || 'Не удалось войти под выбранной ролью'
+    showRoleModal.value = false
+  } finally {
+    quickLoading.value = ''
+  }
+}
+
 async function handleLogin() {
   if (!login.value || !password.value) return
   error.value = ''
@@ -46,7 +76,35 @@ async function handleLogin() {
     <UiButton type="submit" :loading="loading" class="login-form__submit">
       {{ loading ? 'Входим...' : 'Войти в аккаунт' }}
     </UiButton>
+
+    <button type="button" class="login-form__demo" @click="showRoleModal = true">
+      Быстрый вход для демонстрации
+    </button>
   </form>
+
+  <Teleport to="body">
+    <div v-if="showRoleModal" class="role-overlay" @click.self="showRoleModal = false">
+      <div class="role-modal">
+        <button class="role-modal__close" aria-label="Закрыть" @click="showRoleModal = false">✕</button>
+        <h2 class="role-modal__title">Войти как</h2>
+        <p class="role-modal__sub">Выберите роль — вход выполнится автоматически</p>
+
+        <div class="role-modal__list">
+          <button
+            v-for="(d, key) in DEMO"
+            :key="key"
+            class="role-card"
+            :disabled="!!quickLoading"
+            @click="quickLogin(key)"
+          >
+            <span class="role-card__icon">{{ d.icon }}</span>
+            <span class="role-card__label">{{ d.label }}</span>
+            <span class="role-card__arrow">{{ quickLoading === key ? '…' : '→' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style lang="scss">
@@ -99,6 +157,124 @@ async function handleLogin() {
 
   &__submit {
     margin-top: 8px;
+  }
+
+  &__demo {
+    margin-top: 2px;
+    background: none;
+    border: none;
+    color: var(--c-purple-text);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font-main);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+
+    &:hover { opacity: 0.78; }
+  }
+}
+
+/* ── Модалка быстрого входа ── */
+.role-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.role-modal {
+  position: relative;
+  background: var(--c-white);
+  border-radius: var(--radius-lg);
+  padding: 36px 32px 28px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+
+  &__close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--c-bg);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--c-text-gray);
+    transition: background 0.15s;
+
+    &:hover { background: var(--c-purple-light); color: var(--c-purple-text); }
+  }
+
+  &__title {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--c-text-dark);
+    text-align: center;
+  }
+
+  &__sub {
+    font-size: 14px;
+    color: var(--c-text-gray);
+    text-align: center;
+    margin: 6px 0 22px;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+.role-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid #E6E2F2;
+  background: var(--c-white);
+  cursor: pointer;
+  font-family: var(--font-main);
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+
+  &:hover { border-color: var(--c-purple); background: var(--c-purple-light); }
+  &:active { transform: scale(0.99); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  &__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-sm);
+    background: var(--c-purple-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  &__label {
+    flex: 1;
+    text-align: left;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--c-text-dark);
+  }
+
+  &__arrow {
+    font-size: 18px;
+    color: var(--c-purple-text);
+    font-weight: 700;
   }
 }
 </style>

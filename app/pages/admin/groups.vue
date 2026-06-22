@@ -4,6 +4,7 @@ definePageMeta({ layout: 'admin' })
 type Group = { id:number; name:string; subject:string; teacher:string; students:number; schedule:string; format:string; progress:number; status:'active'|'finishing'|'draft'|'archive' }
 
 const api = useApi()
+const router = useRouter()
 const { data, refresh } = await useAsyncData('admin-groups', () =>
   api<any[]>('/admin/groups'),
 )
@@ -105,7 +106,7 @@ async function submitAdd() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="g in filtered" :key="g.id" class="al-table__row">
+          <tr v-for="g in filtered" :key="g.id" class="al-table__row al-table__row--link" @click="router.push(`/admin/groups/${g.id}`)">
             <td class="al-table__name">{{ g.name }}</td>
             <td>{{ g.subject }}</td>
             <td>{{ g.teacher }}</td>

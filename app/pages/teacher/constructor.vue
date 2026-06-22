@@ -1,111 +1,175 @@
 <script setup lang="ts">
-import { assignPair, countCorrect } from '~/utils/matchTask'
+import { assignPair } from '~/utils/matchTask'
 
 definePageMeta({ layout: 'teacher' })
 
-type Pair = { id: number; left: string; right: string }
+const MAX_POINTS = 40
 
-let nextId = 1
-const blankPair = (): Pair => ({ id: nextId++, left: '', right: '' })
+type TaskType = 'single' | 'multiple' | 'input' | 'match'
+const types: { key: TaskType; label: string }[] = [
+  { key: 'single',   label: 'Одиночный выбор' },
+  { key: 'multiple', label: 'Множественный выбор' },
+  { key: 'input',    label: 'Ввод ответа' },
+  { key: 'match',    label: 'Сопоставление' },
+]
 
+const type     = ref<TaskType>('single')
 const taskName = ref('')
 const points   = ref(20)
-const pairs    = ref<Pair[]>([blankPair(), blankPair(), blankPair()])
 
-// Для превью и сохранения берём только полностью заполненные пары.
-const completePairs = computed(() => pairs.value.filter(p => p.left.trim() && p.right.trim()))
-const leftItems  = computed(() => completePairs.value.map(p => ({ id: p.id, value: p.left.trim() })))
-const rightItems = computed(() => completePairs.value.map(p => ({ id: p.id, value: p.right.trim() })))
+watch(points, (v) => {
+  if (typeof v !== 'number' || Number.isNaN(v)) return
+  if (v > MAX_POINTS) points.value = MAX_POINTS
+  else if (v < 1) points.value = 1
+})
 
-function addPair() {
-  pairs.value.push(blankPair())
+// ── Варианты (single / multiple) ──
+let optId = 1
+const blankOption = () => ({ id: optId++, value: '', correct: false })
+const options   = ref([blankOption(), blankOption(), blankOption()])
+const correctId = ref<number | null>(null) // выбранный правильный для single
+
+function addOption() { options.value.push(blankOption()) }
+function removeOption(id: number) {
+  options.value = options.value.filter(o => o.id !== id)
+  if (correctId.value === id) correctId.value = null
+  if (!options.value.length) options.value.push(blankOption())
 }
+const completeOptions = computed(() => options.value.filter(o => o.value.trim()))
+
+// ── Ответы (input) ──
+let ansId = 1
+const blankAnswer = () => ({ id: ansId++, value: '' })
+const answers = ref([blankAnswer()])
+function addAnswer() { answers.value.push(blankAnswer()) }
+function removeAnswer(id: number) {
+  answers.value = answers.value.filter(a => a.id !== id)
+  if (!answers.value.length) answers.value.push(blankAnswer())
+}
+const completeAnswers = computed(() => answers.value.filter(a => a.value.trim()))
+
+// ── Пары (match) ──
+let pairId = 1
+const blankPair = () => ({ id: pairId++, left: '', right: '' })
+const pairs = ref([blankPair(), blankPair(), blankPair()])
+function addPair() { pairs.value.push(blankPair()) }
 function removePair(id: number) {
   pairs.value = pairs.value.filter(p => p.id !== id)
   if (!pairs.value.length) pairs.value.push(blankPair())
 }
+const completePairs = computed(() => pairs.value.filter(p => p.left.trim() && p.right.trim()))
 
-// ── Превью: интерактивная проверка сопоставления ──
-// assignments: индекс слева → индекс справа; правильная пара — одинаковые индексы.
-const assignments  = ref<Record<number, number>>({})
-const selectedLeft = ref<number | null>(null)
+// ── Превью сопоставления (с перемешиванием) ──
+const previewLeft = computed(() =>
+  completePairs.value.map((p, i) => ({ id: p.id, idx: i, value: p.left.trim() })),
+)
+const rightOrder = ref<number[]>([])
+watch(() => completePairs.value.length, (n) => {
+  rightOrder.value = Array.from({ length: n }, (_, i) => i)
+  resetPreview()
+}, { immediate: true })
 
-function resetPreview() {
-  assignments.value = {}
-  selectedLeft.value = null
-}
-
-// Если набор заполненных пар изменился — сбрасываем превью, чтобы индексы не разъезжались.
-watch(() => completePairs.value.length, resetPreview)
-
-function clickLeft(idx: number) {
-  selectedLeft.value = selectedLeft.value === idx ? null : idx
-}
-function clickRight(rIdx: number) {
-  if (selectedLeft.value === null) return
-  assignments.value = assignPair(assignments.value, selectedLeft.value, rIdx)
-  selectedLeft.value = null
-}
-
-function isRightAssigned(rIdx: number) { return Object.values(assignments.value).includes(rIdx) }
-function isLeftCorrect(lIdx: number)   { return lIdx in assignments.value && assignments.value[lIdx] === lIdx }
-function isLeftWrong(lIdx: number)     { return lIdx in assignments.value && assignments.value[lIdx] !== lIdx }
-function isRightCorrect(rIdx: number) {
-  const e = Object.entries(assignments.value).find(([, v]) => v === rIdx)
-  return e ? +e[0] === rIdx : false
-}
-function isRightWrong(rIdx: number) {
-  const e = Object.entries(assignments.value).find(([, v]) => v === rIdx)
-  return e ? +e[0] !== rIdx : false
-}
-function getLeftForRight(rIdx: number) {
-  const e = Object.entries(assignments.value).find(([, v]) => v === rIdx)
-  return e ? leftItems.value[+e[0]]?.value : null
-}
-
-const correctCount = computed(() => countCorrect(assignments.value))
-const totalPairs   = computed(() => Math.min(leftItems.value.length, rightItems.value.length))
-
-// ── Валидация и сохранение ──
-const canSave = computed(() =>
-  taskName.value.trim().length > 0 && completePairs.value.length >= 2 && points.value > 0,
+const previewRight = computed(() =>
+  rightOrder.value.map((origIdx, dr) => ({
+    key: completePairs.value[origIdx]?.id ?? dr,
+    origIdx,
+    value: completePairs.value[origIdx]?.right.trim() ?? '',
+  })),
 )
 
+function shuffle() {
+  const arr = [...rightOrder.value]
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  rightOrder.value = arr
+  resetPreview()
+}
+
+const assignments  = ref<Record<number, number>>({}) // leftIdx → rightDisplayIdx
+const selectedLeft = ref<number | null>(null)
+function resetPreview() { assignments.value = {}; selectedLeft.value = null }
+
+function clickLeft(li: number) { selectedLeft.value = selectedLeft.value === li ? null : li }
+function clickRight(dr: number) {
+  if (selectedLeft.value === null) return
+  assignments.value = assignPair(assignments.value, selectedLeft.value, dr)
+  selectedLeft.value = null
+}
+function leftOf(dr: number): number | null {
+  const e = Object.entries(assignments.value).find(([, v]) => v === dr)
+  return e ? +e[0] : null
+}
+function isLeftCorrect(li: number)  { return li in assignments.value && previewRight.value[assignments.value[li]]?.origIdx === li }
+function isLeftWrong(li: number)    { return li in assignments.value && previewRight.value[assignments.value[li]]?.origIdx !== li }
+function isRightAssigned(dr: number){ return Object.values(assignments.value).includes(dr) }
+function isRightCorrect(dr: number) { const l = leftOf(dr); return l !== null && previewRight.value[dr]?.origIdx === l }
+function isRightWrong(dr: number)   { const l = leftOf(dr); return l !== null && previewRight.value[dr]?.origIdx !== l }
+function rightMatchedLabel(dr: number) { const l = leftOf(dr); return l !== null ? previewLeft.value[l]?.value : null }
+
+const correctCount = computed(() =>
+  Object.entries(assignments.value).filter(([l, dr]) => previewRight.value[dr]?.origIdx === +l).length,
+)
+const totalPairs = computed(() => completePairs.value.length)
+
+// ── Валидация ──
+const canSave = computed(() => {
+  if (!taskName.value.trim() || points.value < 1) return false
+  switch (type.value) {
+    case 'single':   return completeOptions.value.length >= 2 && correctId.value !== null && !!options.value.find(o => o.id === correctId.value)?.value.trim()
+    case 'multiple': return completeOptions.value.length >= 2 && completeOptions.value.some(o => o.correct)
+    case 'input':    return completeAnswers.value.length >= 1
+    case 'match':    return completePairs.value.length >= 2
+  }
+})
+
+// ── Сохранение ──
 const saving = ref(false)
 const toast  = reactive({ show: false, text: '', ok: true })
 let toastTimer: ReturnType<typeof setTimeout> | null = null
-
 function showToast(text: string, ok = true) {
   if (toastTimer) clearTimeout(toastTimer)
-  toast.text = text
-  toast.ok = ok
-  toast.show = true
+  toast.text = text; toast.ok = ok; toast.show = true
   toastTimer = setTimeout(() => { toast.show = false }, 2500)
 }
 
 function clearAll() {
   taskName.value = ''
   points.value = 20
-  pairs.value = [blankPair(), blankPair()]
+  options.value = [blankOption(), blankOption(), blankOption()]
+  correctId.value = null
+  answers.value = [blankAnswer()]
+  pairs.value = [blankPair(), blankPair(), blankPair()]
   resetPreview()
 }
 
-async function saveTask() {
-  if (!canSave.value) {
-    showToast('Заполните название и минимум 2 полные пары', false)
-    return
+function buildBody(): Record<string, any> {
+  const base = { name: taskName.value.trim(), points: points.value, type: type.value }
+  if (type.value === 'single') {
+    const opts = completeOptions.value
+    return { ...base, options: opts.map(o => ({ value: o.value.trim() })), correct: opts.findIndex(o => o.id === correctId.value) }
   }
+  if (type.value === 'multiple') {
+    const opts = completeOptions.value
+    const correct = opts.map((o, i) => (o.correct ? i : -1)).filter(i => i >= 0)
+    return { ...base, options: opts.map(o => ({ value: o.value.trim() })), correct }
+  }
+  if (type.value === 'input') {
+    return { ...base, answers: completeAnswers.value.map(a => a.value.trim()) }
+  }
+  return {
+    ...base,
+    leftItems:  completePairs.value.map(p => ({ value: p.left.trim() })),
+    rightItems: completePairs.value.map(p => ({ value: p.right.trim() })),
+  }
+}
+
+async function saveTask() {
+  if (!canSave.value) { showToast('Заполните название и условие задачи', false); return }
   saving.value = true
   try {
-    await useApi()('/teacher/tasks', {
-      method: 'POST',
-      body: {
-        name: taskName.value.trim(),
-        points: points.value,
-        leftItems:  leftItems.value.map(i => ({ value: i.value })),
-        rightItems: rightItems.value.map(i => ({ value: i.value })),
-      },
-    })
+    await useApi()('/teacher/tasks', { method: 'POST', body: buildBody() })
     showToast('Задание сохранено')
     clearAll()
   } catch {
@@ -119,131 +183,178 @@ async function saveTask() {
 <template>
   <div class="con-page">
 
-    <!-- ── Редактор ──────────────────────────────── -->
+    <!-- ── Редактор ── -->
     <div class="con-editor">
-      <div class="con-editor__head">
-        <h1 class="con-editor__title">Конструктор задач</h1>
-        <span class="con-editor__type">Тип: сопоставление</span>
+      <h1 class="con-editor__title">Конструктор задач</h1>
+
+      <!-- Тип задачи -->
+      <div class="con-types">
+        <button
+          v-for="t in types"
+          :key="t.key"
+          class="con-type"
+          :class="{ 'con-type--active': type === t.key }"
+          @click="type = t.key"
+        >{{ t.label }}</button>
       </div>
 
       <!-- Название и баллы -->
       <div class="con-meta">
         <label class="con-field con-field--grow">
           <span class="con-field__label">Название задания</span>
-          <input
-            v-model="taskName"
-            class="con-field__input"
-            placeholder="Например: сопоставьте методы массива с их назначением"
-          />
+          <input v-model="taskName" class="con-field__input" placeholder="Сформулируйте вопрос или задание" />
         </label>
         <label class="con-field">
-          <span class="con-field__label">Баллы</span>
-          <input v-model.number="points" type="number" min="1" class="con-field__input con-field__input--num" />
+          <span class="con-field__label">Баллы (до {{ MAX_POINTS }})</span>
+          <input v-model.number="points" type="number" min="1" :max="MAX_POINTS" class="con-field__input con-field__input--num" />
         </label>
       </div>
 
-      <!-- Пары -->
-      <div class="con-pairs">
+      <!-- Single / Multiple -->
+      <div v-if="type === 'single' || type === 'multiple'" class="con-block">
         <p class="con-hint">
-          Каждая строка — правильная пара: слева элемент, справа верное соответствие. Нужно минимум 2 пары.
+          Впишите варианты и отметьте
+          {{ type === 'single' ? 'один правильный' : 'все правильные' }} ответ{{ type === 'single' ? '' : 'ы' }}.
         </p>
+        <div v-for="(opt, idx) in options" :key="opt.id" class="con-opt">
+          <input
+            v-if="type === 'single'"
+            type="radio"
+            class="con-opt__mark"
+            :checked="correctId === opt.id"
+            @change="correctId = opt.id"
+          />
+          <input v-else v-model="opt.correct" type="checkbox" class="con-opt__mark" />
+          <input v-model="opt.value" class="con-opt__input" :placeholder="`Вариант ${idx + 1}`" />
+          <button class="con-icon-btn" title="Удалить" @click="removeOption(opt.id)">🗑️</button>
+        </div>
+        <button class="con-add-btn" @click="addOption">+ Добавить вариант</button>
+      </div>
 
+      <!-- Input -->
+      <div v-else-if="type === 'input'" class="con-block">
+        <p class="con-hint">Перечислите допустимые правильные ответы (любой из них засчитывается).</p>
+        <div v-for="(ans, idx) in answers" :key="ans.id" class="con-opt">
+          <span class="con-opt__bullet">✓</span>
+          <input v-model="ans.value" class="con-opt__input" :placeholder="`Правильный ответ ${idx + 1}`" />
+          <button class="con-icon-btn" title="Удалить" @click="removeAnswer(ans.id)">🗑️</button>
+        </div>
+        <button class="con-add-btn" @click="addAnswer">+ Добавить ответ</button>
+      </div>
+
+      <!-- Match -->
+      <div v-else class="con-block">
+        <p class="con-hint">Каждая строка — правильная пара: слева элемент, справа верное соответствие. Нужно минимум 2 пары.</p>
         <div class="con-pairs__head">
           <span>Элемент</span>
           <span>Правильное соответствие</span>
         </div>
-
         <div v-for="(pair, idx) in pairs" :key="pair.id" class="con-pair">
           <span class="con-pair__num">{{ idx + 1 }}</span>
           <input v-model="pair.left" class="con-pair__input" :placeholder="`Элемент ${idx + 1}`" />
           <span class="con-pair__arrow">↔</span>
           <input v-model="pair.right" class="con-pair__input" :placeholder="`Соответствие ${idx + 1}`" />
-          <button class="con-pair__del" title="Удалить пару" @click="removePair(pair.id)">🗑️</button>
+          <button class="con-icon-btn" title="Удалить пару" @click="removePair(pair.id)">🗑️</button>
         </div>
-
         <button class="con-add-btn" @click="addPair">+ Добавить пару</button>
       </div>
     </div>
 
-    <!-- ── Превью ──────────────────────────────── -->
+    <!-- ── Превью ── -->
     <div class="con-preview">
       <div class="con-preview__inner">
+        <h2 class="con-preview__title">{{ taskName || 'Название задания' }}</h2>
 
-        <h2 class="con-preview__title">{{ taskName }}</h2>
+        <!-- single / multiple -->
+        <div v-if="type === 'single' || type === 'multiple'" class="con-preview__list">
+          <div
+            v-for="opt in completeOptions"
+            :key="opt.id"
+            class="con-prev-opt"
+            :class="{ 'con-prev-opt--correct': opt.id === correctId || (type === 'multiple' && opt.correct) }"
+          >
+            <span class="con-prev-opt__mark">{{ type === 'single' ? '◉' : '☑' }}</span>
+            <span>{{ opt.value }}</span>
+            <span v-if="opt.id === correctId || (type === 'multiple' && opt.correct)" class="con-prev-opt__tag">верно</span>
+          </div>
+          <p v-if="!completeOptions.length" class="con-preview__empty">Добавьте варианты ответа</p>
+        </div>
 
-        <div class="con-preview__cols">
+        <!-- input -->
+        <div v-else-if="type === 'input'" class="con-preview__list">
+          <input class="con-field__input" placeholder="Поле ввода ученика" disabled />
+          <div class="con-prev-answers">
+            <span v-for="a in completeAnswers" :key="a.id" class="con-prev-answer">{{ a.value }}</span>
+            <p v-if="!completeAnswers.length" class="con-preview__empty">Добавьте правильные ответы</p>
+          </div>
+        </div>
 
-          <!-- Левая: методы -->
-          <div class="con-preview__col">
-            <p class="con-preview__col-head">Методы</p>
-            <div class="con-preview__items">
-              <div
-                v-for="(item, idx) in leftItems"
-                :key="item.id"
-                class="con-prev-item"
-                :class="{
-                  'con-prev-item--selected': selectedLeft === idx,
-                  'con-prev-item--assigned': isLeftCorrect(idx),
-                  'con-prev-item--wrong':    isLeftWrong(idx)
-                }"
-                @click="clickLeft(idx)"
-              >
-                <span class="con-prev-item__bar" />
-                <span class="con-prev-item__text">{{ item.value || `Элемент ${idx+1}` }}</span>
-                <span class="con-prev-item__drag">⋮⋮</span>
+        <!-- match -->
+        <template v-else>
+          <div class="con-preview__cols">
+            <div class="con-preview__col">
+              <p class="con-preview__col-head">Элементы</p>
+              <div class="con-preview__items">
+                <div
+                  v-for="item in previewLeft"
+                  :key="item.id"
+                  class="con-prev-item"
+                  :class="{
+                    'con-prev-item--selected': selectedLeft === item.idx,
+                    'con-prev-item--assigned': isLeftCorrect(item.idx),
+                    'con-prev-item--wrong':    isLeftWrong(item.idx),
+                  }"
+                  @click="clickLeft(item.idx)"
+                >
+                  <span class="con-prev-item__bar" />
+                  <span class="con-prev-item__text">{{ item.value }}</span>
+                </div>
+                <p v-if="!previewLeft.length" class="con-preview__empty">Добавьте пары</p>
               </div>
-              <p class="con-preview__hint">Выберите метод</p>
+            </div>
+
+            <div class="con-preview__col">
+              <div class="con-preview__col-head con-preview__col-head--row">
+                <span>Соответствия</span>
+                <button v-if="previewRight.length" class="con-mini-btn" @click="shuffle">🔀 Перемешать</button>
+              </div>
+              <div class="con-preview__items">
+                <div
+                  v-for="(item, dr) in previewRight"
+                  :key="item.key"
+                  class="con-prev-item con-prev-item--right"
+                  :class="{
+                    'con-prev-item--matched':   isRightCorrect(dr),
+                    'con-prev-item--wrong':     isRightWrong(dr),
+                    'con-prev-item--droppable': selectedLeft !== null && !isRightAssigned(dr),
+                  }"
+                  @click="clickRight(dr)"
+                >
+                  <span class="con-prev-item__bar" />
+                  <span class="con-prev-item__text">{{ item.value }}</span>
+                  <span v-if="isRightAssigned(dr)" class="con-prev-item__matched-label">{{ rightMatchedLabel(dr) }}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Правая: назначение -->
-          <div class="con-preview__col">
-            <p class="con-preview__col-head">Назначение</p>
-            <div class="con-preview__items">
-              <div
-                v-for="(item, rIdx) in rightItems"
-                :key="item.id"
-                class="con-prev-item con-prev-item--right"
-                :class="{
-                  'con-prev-item--matched':   isRightCorrect(rIdx),
-                  'con-prev-item--wrong':     isRightWrong(rIdx),
-                  'con-prev-item--droppable': selectedLeft !== null && !isRightAssigned(rIdx)
-                }"
-                @click="clickRight(rIdx)"
-              >
-                <span class="con-prev-item__bar" />
-                <span class="con-prev-item__text">{{ item.value || `Описание ${rIdx+1}` }}</span>
-                <span v-if="isRightAssigned(rIdx)" class="con-prev-item__matched-label">
-                  {{ getLeftForRight(rIdx) }}
-                </span>
-                <span class="con-prev-item__arrow">←</span>
-              </div>
-              <p class="con-preview__hint">Нажмите сюда</p>
-            </div>
+          <div class="con-preview__score-row">
+            <span class="con-preview__score">Сопоставлено (верно): {{ correctCount }} / {{ totalPairs }}</span>
+            <button class="con-reset-btn" @click="resetPreview">Сбросить</button>
           </div>
-
-        </div>
-
-        <!-- Счёт -->
-        <div class="con-preview__score-row">
-          <span class="con-preview__score">Сопоставлено (верно): {{ correctCount }} / {{ totalPairs }}</span>
-          <button class="con-reset-btn" @click="resetPreview">Сбросить</button>
-        </div>
-
+        </template>
       </div>
     </div>
 
-    <!-- Действия -->
+    <!-- ── Действия ── -->
     <div class="con-footer">
       <button class="con-clear-btn" @click="clearAll">Очистить</button>
       <button class="con-save-btn" :disabled="!canSave || saving" @click="saveTask">
         {{ saving ? 'Сохранение…' : 'Сохранить задание' }}
       </button>
     </div>
-
   </div>
 
-  <!-- Toast -->
   <Transition name="toast">
     <div v-if="toast.show" class="con-toast" :class="{ 'con-toast--error': !toast.ok }">{{ toast.text }}</div>
   </Transition>
@@ -257,7 +368,7 @@ async function saveTask() {
   gap: 20px;
 }
 
-/* ── Редактор ───────────────────────────────── */
+/* ── Редактор ── */
 .con-editor {
   background: var(--c-white);
   border-radius: var(--radius-md);
@@ -274,400 +385,29 @@ async function saveTask() {
   }
 }
 
-/* Название задания */
-.con-name-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--c-purple-light);
-  border-radius: var(--radius-full);
-  padding: 8px 18px;
-  max-width: 100%;
-}
-
-.con-name-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--c-purple-text);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.con-name-input {
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 13px;
-  color: var(--c-purple-text);
-  font-family: var(--font-main);
-  font-weight: 500;
-  width: 360px;
-  min-width: 0;
-}
-
-/* Колонки */
-.con-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-}
-
-.con-col {
+.con-types {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-
-  &__head {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--c-text-dark);
-    margin-bottom: 4px;
-  }
-}
-
-/* Элементы */
-.con-items {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.con-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  &__label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--c-text-dark);
-    white-space: nowrap;
-    flex-shrink: 0;
-    min-width: 80px;
-  }
-
-  &__input {
-    flex: 1;
-    border: 1.5px solid #E0E0E0;
-    border-radius: var(--radius-sm);
-    padding: 8px 12px;
-    font-size: 13px;
-    font-family: var(--font-main);
-    color: var(--c-text-dark);
-    outline: none;
-    transition: border-color 0.2s;
-
-    &:focus { border-color: var(--c-purple); }
-  }
-
-  &__del {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    padding: 4px;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-    flex-shrink: 0;
-    &:hover { opacity: 1; }
-  }
-}
-
-/* Кнопка добавить */
-.con-add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 18px;
-  border-radius: var(--radius-full);
-  border: 1.5px solid var(--c-purple-text);
-  background: transparent;
-  color: var(--c-purple-text);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: var(--font-main);
-  align-self: flex-start;
-  transition: background 0.15s;
-
-  &:hover { background: var(--c-purple-light); }
-}
-
-/* Баллы */
-.con-points {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--c-yellow-light);
-  border-radius: var(--radius-full);
-  padding: 8px 18px;
-  align-self: flex-start;
-
-  &__label {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--c-yellow-text);
-  }
-
-  &__input {
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--c-yellow-text);
-    font-family: var(--font-main);
-    width: 40px;
-    text-align: left;
-  }
-}
-
-/* ── Превью ─────────────────────────────────── */
-.con-preview {
-  background: #DDD8EE;
-  border-radius: var(--radius-md);
-  padding: 24px;
-}
-
-.con-preview__inner {
-  background: var(--c-white);
-  border-radius: var(--radius-md);
-  padding: 28px 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.con-preview__title {
-  font-family: var(--font-heading);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--c-text-dark);
-}
-
-.con-preview__cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-}
-
-.con-preview__col {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.con-preview__col-head {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--c-text-dark);
-  margin-bottom: 4px;
-}
-
-.con-preview__items {
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.con-preview__hint {
+.con-type {
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid #E0E0E0;
+  background: transparent;
+  color: var(--c-text-dark);
   font-size: 13px;
-  color: #BBB;
-  text-align: center;
-  margin-top: 4px;
-}
-
-/* Превью-элементы */
-.con-prev-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  background: #F8F8F8;
-  border: 1.5px solid #EBEBEB;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  position: relative;
-
-  &:hover { border-color: var(--c-purple); }
-
-  &__bar {
-    width: 4px;
-    height: 32px;
-    border-radius: 2px;
-    background: var(--c-purple);
-    flex-shrink: 0;
-    margin-right: 4px;
-  }
-
-  &__text {
-    flex: 1;
-    font-size: 14px;
-    color: var(--c-text-dark);
-    font-weight: 500;
-  }
-
-  &__drag {
-    font-size: 14px;
-    color: #BBB;
-    letter-spacing: -2px;
-    flex-shrink: 0;
-  }
-
-  &__arrow {
-    font-size: 16px;
-    color: var(--c-text-gray);
-    flex-shrink: 0;
-  }
-
-  &__matched-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--c-purple-text);
-    background: var(--c-purple-light);
-    padding: 2px 8px;
-    border-radius: var(--radius-full);
-    flex-shrink: 0;
-    max-width: 100px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &--selected {
-    border-color: var(--c-purple);
-    background: var(--c-purple-light);
-  }
-
-  &--assigned {
-    border-color: var(--c-green);
-    background: var(--c-green-light);
-  }
-
-  &--matched {
-    border-color: var(--c-green);
-    background: var(--c-green-light);
-  }
-
-  &--wrong {
-    border-color: var(--c-red);
-    background: #FFE0E0;
-
-    .con-prev-item__matched-label {
-      color: var(--c-red);
-      background: #FFCCCC;
-    }
-  }
-
-  &--droppable {
-    border-color: var(--c-purple);
-    border-style: dashed;
-  }
-
-  &--right { cursor: pointer; }
-}
-
-/* Счёт */
-.con-preview__score {
-  align-self: center;
-  display: inline-flex;
-  padding: 8px 24px;
-  border-radius: var(--radius-full);
-  background: var(--c-purple-text);
-  color: var(--c-white);
-  font-size: 14px;
   font-weight: 600;
-}
-
-/* ── Кнопки действий ───────────────────────── */
-.con-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.con-save-btn {
-  padding: 12px 32px;
-  border-radius: var(--radius-full);
-  background: var(--c-purple-text);
-  color: var(--c-white);
-  font-size: 15px;
-  font-weight: 600;
-  border: none;
   cursor: pointer;
   font-family: var(--font-main);
-  transition: opacity 0.2s;
+  transition: all 0.15s;
 
-  &:hover { opacity: 0.88; }
+  &:hover { border-color: var(--c-purple-text); color: var(--c-purple-text); }
+  &--active { background: var(--c-purple-text); border-color: var(--c-purple-text); color: var(--c-white); }
 }
 
-/* Toast */
-.con-toast {
-  position: fixed;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--c-green);
-  color: var(--c-white);
-  font-size: 14px;
-  font-weight: 600;
-  padding: 12px 28px;
-  border-radius: var(--radius-full);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  z-index: 999;
-  white-space: nowrap;
-}
-
-.toast-enter-active, .toast-leave-active { transition: opacity 0.25s, transform 0.25s; }
-.toast-enter-from, .toast-leave-to       { opacity: 0; transform: translateX(-50%) translateY(12px); }
-
-@media (max-width: 768px) {
-  .con-editor { padding: 20px; }
-
-  .con-cols { grid-template-columns: 1fr; gap: 20px; }
-
-  .con-preview__cols { grid-template-columns: 1fr; gap: 20px; }
-
-  .con-preview__inner { padding: 20px; }
-
-  .con-name-wrap { width: 100%; box-sizing: border-box; }
-
-  .con-name-input { width: 100%; }
-
-  .con-footer { flex-direction: column-reverse; }
-
-  .con-save-btn,
-  .con-clear-btn { width: 100%; }
-}
-
-@media (max-width: 480px) {
-  .con-item {
-    flex-wrap: wrap;
-    &__label { min-width: 100%; }
-  }
-}
-
-/* ── Шапка редактора ── */
-.con-editor__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.con-editor__type {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--c-purple-text);
-  background: var(--c-purple-light);
-  padding: 5px 12px;
-  border-radius: var(--radius-full);
-}
-
-/* ── Название + баллы ── */
+/* Название + баллы */
 .con-meta {
   display: flex;
   gap: 16px;
@@ -689,6 +429,8 @@ async function saveTask() {
   }
 
   &__input {
+    width: 100%;
+    box-sizing: border-box;
     border: 1.5px solid #E0E0E0;
     border-radius: var(--radius-sm);
     padding: 10px 14px;
@@ -699,12 +441,11 @@ async function saveTask() {
     transition: border-color 0.2s;
 
     &:focus { border-color: var(--c-purple); }
-    &--num { width: 90px; }
+    &--num { width: 110px; }
   }
 }
 
-/* ── Пары ── */
-.con-pairs {
+.con-block {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -718,6 +459,73 @@ async function saveTask() {
   padding: 10px 14px;
 }
 
+/* Варианты / ответы */
+.con-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  &__mark {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--c-purple);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  &__bullet {
+    width: 18px;
+    text-align: center;
+    color: var(--c-green);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  &__input {
+    flex: 1;
+    border: 1.5px solid #E0E0E0;
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: var(--font-main);
+    color: var(--c-text-dark);
+    outline: none;
+    transition: border-color 0.2s;
+    &:focus { border-color: var(--c-purple); }
+  }
+}
+
+.con-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+  &:hover { opacity: 1; }
+}
+
+.con-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--c-purple-text);
+  background: transparent;
+  color: var(--c-purple-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-main);
+  align-self: flex-start;
+  transition: background 0.15s;
+  &:hover { background: var(--c-purple-light); }
+}
+
+/* Пары */
 .con-pairs__head {
   display: grid;
   grid-template-columns: 28px 1fr 28px 1fr 36px;
@@ -763,35 +571,184 @@ async function saveTask() {
     color: var(--c-text-dark);
     outline: none;
     transition: border-color 0.2s;
-
     &:focus { border-color: var(--c-purple); }
   }
 
-  &__arrow {
-    text-align: center;
-    color: var(--c-purple-text);
-    font-size: 16px;
+  &__arrow { text-align: center; color: var(--c-purple-text); font-size: 16px; }
+}
+
+/* ── Превью ── */
+.con-preview {
+  background: #DDD8EE;
+  border-radius: var(--radius-md);
+  padding: 24px;
+}
+
+.con-preview__inner {
+  background: var(--c-white);
+  border-radius: var(--radius-md);
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.con-preview__title {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--c-text-dark);
+}
+
+.con-preview__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.con-preview__empty {
+  font-size: 13px;
+  color: #BBB;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.con-prev-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid #EBEBEB;
+  background: #F8F8F8;
+  font-size: 14px;
+  color: var(--c-text-dark);
+
+  &__mark { color: var(--c-text-gray); }
+  &__tag {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-green-text);
+    background: var(--c-green-light);
+    padding: 2px 10px;
+    border-radius: var(--radius-full);
   }
 
-  &__del {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    padding: 4px;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-    &:hover { opacity: 1; }
+  &--correct { border-color: var(--c-green); background: var(--c-green-light); }
+}
+
+.con-prev-answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.con-prev-answer {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-green-text);
+  background: var(--c-green-light);
+  border-radius: var(--radius-full);
+  padding: 5px 14px;
+}
+
+.con-preview__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.con-preview__col { display: flex; flex-direction: column; gap: 10px; }
+
+.con-preview__col-head {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-text-dark);
+
+  &--row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
 }
 
-/* ── Счёт превью + сброс ── */
+.con-mini-btn {
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--c-purple-text);
+  background: transparent;
+  color: var(--c-purple-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-main);
+  &:hover { background: var(--c-purple-light); }
+}
+
+.con-preview__items { display: flex; flex-direction: column; gap: 8px; }
+
+.con-prev-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: #F8F8F8;
+  border: 1.5px solid #EBEBEB;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover { border-color: var(--c-purple); }
+
+  &__bar {
+    width: 4px;
+    height: 30px;
+    border-radius: 2px;
+    background: var(--c-purple);
+    flex-shrink: 0;
+  }
+
+  &__text { flex: 1; font-size: 14px; color: var(--c-text-dark); font-weight: 500; }
+
+  &__matched-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-purple-text);
+    background: var(--c-purple-light);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &--selected { border-color: var(--c-purple); background: var(--c-purple-light); }
+  &--assigned,
+  &--matched  { border-color: var(--c-green); background: var(--c-green-light); }
+  &--wrong    { border-color: var(--c-red); background: #FFE0E0; }
+  &--droppable { border-color: var(--c-purple); border-style: dashed; }
+}
+
 .con-preview__score-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.con-preview__score {
+  display: inline-flex;
+  padding: 8px 24px;
+  border-radius: var(--radius-full);
+  background: var(--c-purple-text);
+  color: var(--c-white);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .con-reset-btn {
@@ -804,11 +761,17 @@ async function saveTask() {
   font-weight: 600;
   cursor: pointer;
   font-family: var(--font-main);
-  transition: background 0.15s;
   &:hover { background: rgba(255, 255, 255, 0.5); }
 }
 
-/* ── Очистить + disabled + ошибка ── */
+/* ── Действия ── */
+.con-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .con-clear-btn {
   padding: 12px 28px;
   border-radius: var(--radius-full);
@@ -823,29 +786,62 @@ async function saveTask() {
   &:hover { border-color: var(--c-purple-text); color: var(--c-purple-text); }
 }
 
-.con-save-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.con-save-btn {
+  padding: 12px 32px;
+  border-radius: var(--radius-full);
+  background: var(--c-purple-text);
+  color: var(--c-white);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-main);
+  transition: opacity 0.2s;
+
+  &:hover { opacity: 0.88; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
-.con-toast--error { background: var(--c-red); }
+/* ── Toast ── */
+.con-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--c-green);
+  color: var(--c-white);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 28px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 999;
+  white-space: nowrap;
 
-/* ── Адаптив пар ── */
+  &--error { background: var(--c-red); }
+}
+
+.toast-enter-active, .toast-leave-active { transition: opacity 0.25s, transform 0.25s; }
+.toast-enter-from, .toast-leave-to       { opacity: 0; transform: translateX(-50%) translateY(12px); }
+
+@media (max-width: 768px) {
+  .con-editor { padding: 20px; }
+  .con-preview__inner { padding: 20px; }
+  .con-preview__cols { grid-template-columns: 1fr; gap: 20px; }
+  .con-footer { flex-direction: column-reverse; }
+  .con-save-btn, .con-clear-btn { width: 100%; }
+}
+
 @media (max-width: 600px) {
   .con-pairs__head { display: none; }
-
   .con-pair {
     grid-template-columns: 28px 1fr 36px;
-    grid-template-areas:
-      "num left del"
-      "num right del";
+    grid-template-areas: "num left del" "num right del";
     row-gap: 8px;
-
-    &__num   { grid-area: num; align-self: start; }
-    &__del   { grid-area: del; align-self: start; }
+    &__num { grid-area: num; align-self: start; }
     &__arrow { display: none; }
   }
-
+  .con-pair .con-icon-btn { grid-area: del; align-self: start; }
   .con-pair__input:nth-of-type(1) { grid-area: left; }
   .con-pair__input:nth-of-type(2) { grid-area: right; }
 }

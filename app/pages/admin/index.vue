@@ -198,7 +198,10 @@ const { data, refresh } = await useAsyncData('admin-dashboard', () =>
 
         <!-- Лента активности -->
         <div class="adm-card">
-          <p class="adm-section-label">ЛЕНТА АКТИВНОСТИ</p>
+          <div class="adm-activity-head">
+            <p class="adm-section-label">ЛЕНТА АКТИВНОСТИ</p>
+            <NuxtLink to="/admin/transactions" class="adm-activity-head__link">Все транзакции →</NuxtLink>
+          </div>
           <div class="adm-activity">
             <div v-for="item in data.activity" :key="item.id" class="adm-activity-item">
               <span class="adm-activity-item__dot" />
@@ -736,6 +739,26 @@ const { data, refresh } = await useAsyncData('admin-dashboard', () =>
 }
 
 /* Activity */
+.adm-activity-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+
+  .adm-section-label { margin-bottom: 0; }
+
+  &__link {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-purple-text);
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover { text-decoration: underline; }
+  }
+}
+
 .adm-activity {
   display: flex;
   flex-direction: column;
