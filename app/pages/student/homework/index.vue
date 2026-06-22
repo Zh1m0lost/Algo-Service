@@ -6,66 +6,9 @@ import checkIcon from '~/assets/icons/YellowGalochka.svg'
 
 definePageMeta({ layout: 'student' })
 
-// TODO: заменить на useFetch('/api/student/homework')
-const data = {
-  stats: { total: 6, inProgress: 2, completed: 3 },
-  items: [
-    {
-      id: 1,
-      title: 'Алгоритмы сортировки',
-      subject: 'Алгоритмы и структуры данных',
-      description: 'Реализовать алгоритмы быстрой сортировки и сортировки слиянием. Провести анализ сложности.',
-      deadline: '28 апреля 2026 г.',
-      points: 100,
-      status: 'completed'
-    },
-    {
-      id: 2,
-      title: 'JavaScript: Работа с массивами',
-      subject: 'JavaScript Основы',
-      description: 'Реализовать функции для работы с массивами: фильтрация, сортировка, поиск. Использовать методы map, filter, reduce.',
-      deadline: '26 апреля 2026 г.',
-      points: 80,
-      status: 'overdue'
-    },
-    {
-      id: 3,
-      title: 'Создание веб-страницы с HTML/CSS',
-      subject: 'Frontend разработка',
-      description: 'Разработать адаптивную landing page используя HTML5 и CSS3. Требования: семантическая верстка, флексбокс, медиа-запросы.',
-      deadline: '28 апреля 2026 г.',
-      points: 100,
-      status: 'in_progress'
-    },
-    {
-      id: 4,
-      title: 'Асинхронность и промисы',
-      subject: 'JavaScript Основы',
-      description: 'Реализовать цепочки промисов, обработку ошибок через catch. Переписать колбэки на async/await.',
-      deadline: '30 апреля 2026 г.',
-      points: 80,
-      status: 'review'
-    },
-    {
-      id: 5,
-      title: 'CSS Grid Layout',
-      subject: 'Frontend разработка',
-      description: 'Создать сложный макет с использованием CSS Grid. Реализовать адаптивную сетку без медиа-запросов.',
-      deadline: '2 мая 2026 г.',
-      points: 60,
-      status: 'pending'
-    },
-    {
-      id: 12,
-      title: 'Лендинг на HTML&CSS',
-      subject: 'Frontend разработка',
-      description: 'Создать полноценную landing page для продукта или стартапа на выбор. Семантика, CSS-переменные, Grid, Flexbox, hover-эффекты, адаптивность — без CSS-фреймворков.',
-      deadline: '28 апреля 2026 г.',
-      points: 100,
-      status: 'pending'
-    }
-  ]
-}
+const { data } = await useAsyncData('student-homework-list', () =>
+  useApi()<any>('/student/homework'),
+)
 
 const statusMap: Record<string, { label: string; cls: string }> = {
   completed:  { label: 'Выполнено',        cls: 'hw-badge--green'  },
@@ -87,7 +30,7 @@ function btnClass(status: string) {
 </script>
 
 <template>
-  <div class="hw-list">
+  <div v-if="data" class="hw-list">
 
     <!-- Статистика -->
     <div class="hw-stats">

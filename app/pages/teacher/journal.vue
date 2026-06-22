@@ -2,46 +2,25 @@
 import { avg } from '~/utils/grades'
 definePageMeta({ layout: 'teacher' })
 
-// TODO: заменить на useFetch('/api/teacher/journal?group=' + selectedGroup.value)
-const groups = ['Web-Dev-2024-B', 'WebDev-2024-A', 'Python-2024-A']
-const selectedGroup = ref(groups[0])
+const api = useApi()
+const selectedGroup = ref<string>('')
 
-const subjects = ['Frontend HTML/CSS', 'JS Массивы', 'Алгоритмы']
+const { data, refresh } = await useAsyncData('teacher-journal',
+  () => api<any>('/teacher/journal', { query: { group: selectedGroup.value || undefined } }),
+  { watch: [selectedGroup] },
+)
 
-const assignments = [
-  'Frontend - Лендинг HTML/CSS',
-  'JS - Работа с массивами',
-  'Алгоритмы - Сортировка'
-]
+const groups      = computed<string[]>(() => data.value?.groups ?? [])
+const subjects    = computed<string[]>(() => data.value?.subjects ?? [])
+const assignments = computed<string[]>(() => data.value?.assignments ?? [])
+const students    = computed<any[]>(() => data.value?.students ?? [])
 
-type Student = { name: string; points: number; grades: (number | null)[] }
-
-// grades[studentIndex][subjectIndex] = число (1-5) | null
-const studentsData = reactive<Record<string, Student[]>>({
-  'Web-Dev-2024-B': [
-    { name: 'Иван Иванов',    points: 1240, grades: [5, 4, 5]    },
-    { name: 'Мария Смирнова', points: 980,  grades: [4, null, 5] },
-    { name: 'Алексей Козлов', points: 720,  grades: [3, 4, null] },
-    { name: 'Дарья Михайлова',points: 1480, grades: [5, 5, 4]    },
-    { name: 'Пётр Николаев',  points: 540,  grades: [2, 3, 3]    }
-  ],
-  'WebDev-2024-A': [
-    { name: 'Анна Петрова',   points: 1100, grades: [4, 5, null] },
-    { name: 'Сергей Волков',  points: 870,  grades: [3, null, 4] },
-    { name: 'Елена Орлова',   points: 1320, grades: [5, 4, 5]    },
-    { name: 'Максим Зайцев',  points: 650,  grades: [3, 3, null] },
-    { name: 'Ольга Кузнецова',points: 990,  grades: [4, null, 3] }
-  ],
-  'Python-2024-A': [
-    { name: 'Никита Соколов', points: 1050, grades: [4, 4, null] },
-    { name: 'Юлия Морозова',  points: 1200, grades: [5, null, 5] },
-    { name: 'Артём Попов',    points: 780,  grades: [3, 4, 3]    },
-    { name: 'Ксения Лебедева',points: 920,  grades: [null, 4, 4] },
-    { name: 'Виктор Новиков', points: 1380, grades: [5, 5, 4]    }
-  ]
+// Как только список групп пришёл — выбираем первую.
+watchEffect(() => {
+  if (!selectedGroup.value && groups.value.length) {
+    selectedGroup.value = groups.value[0]
+  }
 })
-
-const students = computed(() => studentsData[selectedGroup.value])
 
 // Цвета ячеек по оценке
 const cellBg: Record<number, string> = {
@@ -65,27 +44,39 @@ function avgColor(a: number | null) {
 
 // Форма выставления оценки
 const form = reactive({
-  student:    students.value[0].name,
-  assignment: assignments[0],
+  student:    '',
+  assignment: '',
   points:     85,
   grade:      5
 })
 
-watch(selectedGroup, () => {
-  form.student = students.value[0]?.name ?? ''
-})
+// При обновлении данных подставляем первого ученика и первое задание.
+watch(data, (d) => {
+  if (!d) return
+  form.student = d.students?.[0]?.name ?? ''
+  if (!d.assignments?.includes(form.assignment)) {
+    form.assignment = d.assignments?.[0] ?? ''
+  }
+}, { immediate: true })
 
-function submitGrade() {
-  const sIdx = students.value.findIndex(s => s.name === form.student)
-  const aIdx = assignments.indexOf(form.assignment)
-  if (sIdx === -1 || aIdx === -1) return
-  students.value[sIdx].grades.splice(aIdx, 1, form.grade)
-  // TODO: POST /api/teacher/journal/grade { student, assignment, points, grade }
+async function submitGrade() {
+  if (!form.student || !form.assignment) return
+  await api('/teacher/journal/grade', {
+    method: 'POST',
+    body: {
+      group:      selectedGroup.value,
+      student:    form.student,
+      assignment: form.assignment,
+      points:     form.points,
+      grade:      form.grade,
+    },
+  })
+  await refresh()
 }
 
 function resetForm() {
   form.student    = students.value[0]?.name ?? ''
-  form.assignment = assignments[0]
+  form.assignment = assignments.value[0] ?? ''
   form.points     = 85
   form.grade      = 5
 }
@@ -94,7 +85,7 @@ function resetForm() {
 const groupOpen = ref(false)
 
 function exportSvg() {
-  const colW   = [200, ...subjects.map(() => 110), 130, 120]
+  const colW   = [200, ...subjects.value.map(() => 110), 130, 120]
   const rowH   = 48
   const headH  = 52
   const pad    = 16
@@ -105,7 +96,7 @@ function exportSvg() {
 
   const gradeFill: Record<number, string> = { 5: '#D8F5D0', 4: '#D0E8FF', 3: '#EDE7FF', 2: '#FFE0E0' }
 
-  const cols = ['Ученик', ...subjects, 'Итого баллов', 'Средний балл']
+  const cols = ['Ученик', ...subjects.value, 'Итого баллов', 'Средний балл']
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" font-family="Arial, sans-serif">`
   svg += `<rect width="${totalW}" height="${totalH}" fill="#fff"/>`
@@ -128,7 +119,7 @@ function exportSvg() {
     svg += `<text x="${x(0) + pad}" y="${y + rowH / 2 + 5}" font-size="14" font-weight="500" fill="#333">${s.name}</text>`
 
     // Оценки
-    subjects.forEach((_, si) => {
+    subjects.value.forEach((_, si) => {
       const g = s.grades[si]
       const fill = g ? gradeFill[g] ?? '#fff' : '#fff'
       svg += `<rect x="${x(si + 1)}" y="${y}" width="${colW[si + 1]}" height="${rowH}" fill="${fill}" stroke="#F0F0F0" stroke-width="1"/>`
@@ -136,12 +127,12 @@ function exportSvg() {
     })
 
     // Баллы
-    const pc = subjects.length + 1
+    const pc = subjects.value.length + 1
     svg += `<rect x="${x(pc)}" y="${y}" width="${colW[pc]}" height="${rowH}" fill="#fff" stroke="#F0F0F0" stroke-width="1"/>`
     svg += `<text x="${x(pc) + colW[pc] / 2}" y="${y + rowH / 2 + 5}" text-anchor="middle" font-size="15" font-weight="700" fill="#B87A00">${s.points.toLocaleString('ru')}</text>`
 
     // Средний
-    const ac = subjects.length + 2
+    const ac = subjects.value.length + 2
     svg += `<rect x="${x(ac)}" y="${y}" width="${colW[ac]}" height="${rowH}" fill="#fff" stroke="#F0F0F0" stroke-width="1"/>`
     svg += `<text x="${x(ac) + colW[ac] / 2}" y="${y + rowH / 2 + 5}" text-anchor="middle" font-size="15" font-weight="700" fill="${avgFill}">${a ?? '—'}</text>`
   })

@@ -1,51 +1,10 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'teacher' })
 
-// TODO: заменить на useFetch('/api/teacher/schedule?week=2026-04-27')
-const data = {
-  weekLabel: '27 апр. — 2 мая 2026',
-  todayDayIndex: 2, // 1=ПН … 5=ПТ (вторник = текущий день)
 
-  days: [
-    { index: 1, short: 'ПН', date: '27' },
-    { index: 2, short: 'ВТ', date: '28' },
-    { index: 3, short: 'СР', date: '29' },
-    { index: 4, short: 'ЧТ', date: '30' },
-    { index: 5, short: 'ПТ', date: '1'  }
-  ],
-
-  timeSlots: ['16:00', '18:00', '20:00'],
-
-  lessons: [
-    { id: 1, day: 1, time: '18:00', group: 'WebDev-B',  subject: 'JavaScript',  color: '#EDE7FF', text: '#5B2D8E' },
-    { id: 2, day: 1, time: '20:00', group: 'Python-A',  subject: 'ООП',         color: '#E2F5D8', text: '#2E6E16' },
-    { id: 3, day: 2, time: '16:00', group: 'WebDev-A',  subject: 'HTML/CSS',    color: '#FFF5C2', text: '#7A6100' },
-    { id: 4, day: 2, time: '20:00', group: 'Python-B',  subject: 'Функции',     color: '#D8EEFF', text: '#1A5A8E' },
-    { id: 5, day: 3, time: '18:00', group: 'WebDev-B',  subject: 'Промисы',     color: '#E2F5D8', text: '#2E6E16' },
-    { id: 6, day: 4, time: '16:00', group: 'React-2025',subject: 'Компоненты',  color: '#D8EEFF', text: '#1A5A8E' },
-    { id: 7, day: 4, time: '20:00', group: 'Алро-Adv',  subject: 'Графы',       color: '#FFF5C2', text: '#7A6100' },
-    { id: 8, day: 5, time: '18:00', group: 'WebDev-A',  subject: 'Проект',      color: '#EDE7FF', text: '#5B2D8E' }
-  ],
-
-  tasks: {
-    todo: [
-      { id: 1, title: 'Подготовить материалы по промисам',   meta: 'WebDev-B · 28 апр.', priority: 'urgent'  },
-      { id: 2, title: 'Составить тест по Python ООП',        meta: 'Python-A · 30 апр.', priority: 'medium'  },
-      { id: 3, title: 'Обновить задание по Алгоритмам',      meta: 'Алро-Adv',           priority: 'low'     },
-      { id: 4, title: 'Записать видео-разбор ДЗ',            meta: 'Все группы',          priority: 'medium'  }
-    ],
-    inProgress: [
-      { id: 5, title: 'Проверить ДЗ по HTML/CSS (WebDev-B)', meta: 'до 28 апр.',          priority: 'urgent'  },
-      { id: 6, title: 'Написать конспект по React Hooks',    meta: 'React-2026',          priority: 'medium'  },
-      { id: 7, title: 'Выставить оценки за контрольную',     meta: 'Python-A',            priority: 'urgent'  }
-    ],
-    done: [
-      { id: 8, title: 'Проверить ДЗ Алгоритмы (3 работы)',  meta: '25 апр.',             priority: 'done'    },
-      { id: 9, title: 'Составить задание по Git',            meta: '24 апр.',             priority: 'done'    },
-      { id: 10,title: 'Созвон с группой Python-B',           meta: '23 апр.',             priority: 'done'    }
-    ]
-  }
-}
+const { data } = await useAsyncData('teacher-schedule', () =>
+  useApi()<any>('/teacher/schedule'),
+)
 
 const priorityMap: Record<string, { label: string; cls: string }> = {
   urgent: { label: 'Срочно',    cls: 'sch-task__badge--urgent'  },
@@ -56,8 +15,8 @@ const priorityMap: Record<string, { label: string; cls: string }> = {
 
 // Быстрый поиск занятия по (day, time)
 const lessonMap = computed(() => {
-  const map: Record<string, typeof data.lessons[0]> = {}
-  for (const l of data.lessons) map[`${l.day}-${l.time}`] = l
+  const map: Record<string, any> = {}
+  for (const l of (data.value?.lessons ?? [])) map[`${l.day}-${l.time}`] = l
   return map
 })
 
@@ -66,13 +25,13 @@ function getLesson(dayIndex: number, time: string) {
 }
 
 const router = useRouter()
-function openLesson(lesson: typeof data.lessons[0]) {
+function openLesson(lesson: any) {
   router.push(`/teacher/lesson/${lesson.id}`)
 }
 </script>
 
 <template>
-  <div class="sch">
+  <div v-if="data" class="sch">
 
     <div class="sch__header">
       <h1 class="sch__title">Расписание</h1>

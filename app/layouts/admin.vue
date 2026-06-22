@@ -1,10 +1,12 @@
 <script setup lang="ts">
-const adminName = ref('Алексей Смирнов')
+const { user, logout: signOut } = useAuth()
+const adminName = computed(() => user.value?.name ?? '')
 const route = useRoute()
 const isSubPage = computed(() => route.path !== '/admin')
 const showLogoutModal = ref(false)
 
-function logout() {
+async function logout() {
+  await signOut()
   navigateTo('/auth/login')
 }
 </script>

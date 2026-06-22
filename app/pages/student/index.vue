@@ -4,51 +4,18 @@ import yellowCheckIcon from '~/assets/icons/YellowGalochka.svg'
 
 definePageMeta({ layout: 'student' })
 
-// TODO: заменить на useFetch('/api/student/dashboard')
-const data = {
-  user: { name: 'Иван' },
-  progress: { total: 5, completed: 3, message: 'До конца модуля осталось всего 2 задания.' },
-  nextLesson: {
-    homeworkId: 4,
-    lessonId: 1,
-    dateLabel: 'Вторник, 29 апреля 2026',
-    title: 'JavaScript — Асинхронность и промисы',
-    teacher: 'Елена Петровна',
-    group: 'WebDev-2024-A',
-    format: 'Онлайн',
-    timeStart: '18:00',
-    timeEnd: '19:30',
-    zoomLink: 'https://zoom.us/j/123456'
-  },
-  nearestDeadline: {
-    id: 12,
-    title: 'Frontend разработка — Лендинг на HTML&CSS',
-    tags: ['HTML / CSS'],
-    points: 100,
-    daysLeft: 2,
-    deadline: '28 апреля 2026, 23:59'
-  },
-  points: {
-    total: 1240,
-    history: [
-      { id: 1, type: 'homework', title: 'Алгоритмы и структуры данных', date: '22 апр. 2026', amount: 100 },
-      { id: 2, type: 'homework', title: 'JavaScript Основы', date: '18 апр. 2026', amount: 80 },
-      { id: 3, type: 'shop', title: 'Футболка Алгоритмика', date: '10 апр. 2026', amount: -200 }
-    ]
-  },
-  nearestTasks: [
-    { id: 12, title: 'Frontend разработка', deadline: '28 апр.' },
-    { id: 13, title: 'JavaScript Основы', deadline: '30 апр.' }
-  ]
-}
-
-const progressPercent = computed(() =>
-  Math.round((data.progress.completed / data.progress.total) * 100)
+const { data } = await useAsyncData('student-dashboard', () =>
+  useApi()<any>('/student/dashboard'),
 )
+
+const progressPercent = computed(() => {
+  const p = data.value?.progress
+  return p && p.total ? Math.round((p.completed / p.total) * 100) : 0
+})
 </script>
 
 <template>
-  <div class="dashboard">
+  <div v-if="data" class="dashboard">
 
     <!-- Hero -->
     <div class="hero">
@@ -88,7 +55,7 @@ const progressPercent = computed(() =>
     <div class="dashboard-grid">
 
       <!-- Следующее занятие -->
-      <div class="card">
+      <div v-if="data.nextLesson" class="card">
         <p class="card__section-label">СЛЕДУЮЩЕЕ ЗАНЯТИЕ</p>
         <div class="lesson-date">
           <img src="~/assets/icons/PerpleCalendar.svg" alt="" />
@@ -112,7 +79,7 @@ const progressPercent = computed(() =>
       </div>
 
       <!-- Ближайший дедлайн -->
-      <div class="card card--deadline">
+      <div v-if="data.nearestDeadline" class="card card--deadline">
         <p class="card__section-label card__section-label--red">
           <span class="dot dot--red" /> БЛИЖАЙШИЙ ДЕДЛАЙН
         </p>

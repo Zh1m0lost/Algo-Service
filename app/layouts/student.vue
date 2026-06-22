@@ -1,8 +1,10 @@
 <script setup lang="ts">
-const userName = ref('Иван Иванов')
+const { user, logout: signOut } = useAuth()
+const userName = computed(() => user.value?.name ?? '')
 const showLogoutModal = ref(false)
 
-function logout() {
+async function logout() {
+  await signOut()
   navigateTo('/auth/login')
 }
 </script>

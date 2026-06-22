@@ -6,4 +6,12 @@ export default defineNuxtConfig({
     host: 'localhost'
   },
   css: ['~/assets/css/main.scss'],
+  runtimeConfig: {
+    public: {
+      // Базовый URL API. Переопределяется переменной окружения NUXT_PUBLIC_API_BASE.
+      // По умолчанию — продакшен-бэкенд. Для локальной разработки укажите
+      // NUXT_PUBLIC_API_BASE=http://localhost:8000/api
+      apiBase: 'https://api.enotit.space/api',
+    },
+  },
 })

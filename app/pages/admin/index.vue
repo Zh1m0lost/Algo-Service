@@ -7,10 +7,7 @@ type Teacher = { id:number; initials:string; color:string; name:string; subject:
 type Group   = { id:number; name:string; subject:string; teacher:string; students:number; schedule:string; format:string; progress:number; status:'active'|'finishing'|'draft'|'archive' }
 type Task    = { id:number; title:string; desc:string; recurrence:{ label:string; cls:string }; deadline:{ text:string; urgent:boolean }; assignee:{ name:string; role:string }; comment:{ author:string; date:string; text:string }|null; urgency:'urgent'|'soon'|'calm' }
 
-const students = useState<Student[]>('adminStudents', () => [])
-const teachers = useState<Teacher[]>('adminTeachers', () => [])
-const groups   = useState<Group[]>('adminGroups',   () => [])
-const tasks    = useState<Task[]>('adminTasks',     () => [])
+const api = useApi()
 
 const avatarColors = ['#F5A623','#7B5EA7','#E8823A','#D4A017','#6B8FA8','#5B7EA6','#3A9A8A','#4A8C5C','#57A86B','#A07BC0']
 const recurrenceOptions = [
@@ -45,113 +42,72 @@ function showToast(text: string) {
 function openModal(type: ModalType) { activeModal.value = type }
 function closeModal() { activeModal.value = null }
 
-function submitStudent() {
+async function submitStudent() {
   if (!studentForm.name.trim()) return
-  students.value.push({
-    id: Date.now(),
-    initials: mkInitials(studentForm.name),
-    color: avatarColors[students.value.length % avatarColors.length],
+  await api('/admin/students', { method: 'POST', body: {
     name: studentForm.name, group: studentForm.group, parent: studentForm.parent,
-    phone: studentForm.phone, payment: studentForm.payment, points: studentForm.points
-  })
+    phone: studentForm.phone, payment: studentForm.payment, points: studentForm.points,
+  }})
+  await refresh()
   closeModal()
   Object.assign(studentForm, { name:'', group:'', parent:'', phone:'', payment:'paid', points:0 })
   showToast('Ученик добавлен')
 }
 
-function submitTeacher() {
+async function submitTeacher() {
   if (!teacherForm.name.trim()) return
-  teachers.value.push({
-    id: Date.now(),
-    initials: mkInitials(teacherForm.name),
-    color: avatarColors[teachers.value.length % avatarColors.length],
+  await api('/admin/teachers', { method: 'POST', body: {
     name: teacherForm.name, subject: teacherForm.subject, email: teacherForm.email,
-    phone: teacherForm.phone, status: teacherForm.status, rate: teacherForm.rate
-  })
+    phone: teacherForm.phone, status: teacherForm.status, rate: teacherForm.rate,
+  }})
+  await refresh()
   closeModal()
   Object.assign(teacherForm, { name:'', subject:'', email:'', phone:'', status:'active', rate:1200 })
   showToast('Преподаватель добавлен')
 }
 
-function submitGroup() {
+async function submitGroup() {
   if (!groupForm.name.trim()) return
-  groups.value.push({
-    id: Date.now(),
-    name: groupForm.name, subject: groupForm.subject, teacher: groupForm.teacher || '—',
-    students: groupForm.students, schedule: groupForm.schedule || '—',
-    format: groupForm.format, progress: 0, status: groupForm.status
-  })
+  await api('/admin/groups', { method: 'POST', body: {
+    name: groupForm.name, subject: groupForm.subject, teacher: groupForm.teacher,
+    schedule: groupForm.schedule, format: groupForm.format, status: groupForm.status,
+  }})
+  await refresh()
   closeModal()
   Object.assign(groupForm, { name:'', subject:'', teacher:'', students:0, schedule:'', format:'Онлайн', status:'active' })
   showToast('Группа добавлена')
 }
 
-function submitTask() {
+async function submitTask() {
   if (!taskForm.title.trim()) return
-  tasks.value.push({
-    id: Date.now(),
-    title: taskForm.title,
-    desc: taskForm.desc,
-    recurrence: recurrenceOptions[taskForm.recurrenceIdx],
-    deadline: { text: taskForm.deadlineText || '—', urgent: taskForm.deadlineUrgent },
-    assignee: { name: taskForm.assigneeName || '—', role: taskForm.assigneeRole },
-    comment: null,
-    urgency: taskForm.urgency
-  })
+  await api('/admin/tasks', { method: 'POST', body: {
+    title: taskForm.title, desc: taskForm.desc,
+    recurrence: recurrenceOptions[taskForm.recurrenceIdx]?.label,
+    deadlineText: taskForm.deadlineText, deadlineUrgent: taskForm.deadlineUrgent,
+    assigneeName: taskForm.assigneeName, assigneeRole: taskForm.assigneeRole,
+    urgency: taskForm.urgency,
+  }})
+  await refresh()
   closeModal()
   Object.assign(taskForm, { title:'', desc:'', recurrenceIdx:0, deadlineText:'', deadlineUrgent:false, assigneeName:'', assigneeRole:'группа', urgency:'calm' })
   showToast('Задача добавлена')
 }
 
-// ── Static dashboard data ─────────────────────────────────────────────────────
-const data = {
-  admin: { name: 'Алексей' },
+// Быстрые действия открывают модалки создания (навигация, не данные).
+const quickActions = [
+  { label: 'Новая группа',  sub: 'Расписание',            type: 'group'   as ModalType },
+  { label: 'Новый ученик',  sub: 'Карточка · контакт',    type: 'student' as ModalType },
+  { label: 'Преподаватель', sub: 'Ставка · предметы',     type: 'teacher' as ModalType },
+  { label: 'Задача',        sub: 'Дедлайн, регулярность', type: 'task'    as ModalType },
+]
 
-  hero: {
-    subtitle:      'Краткая сводка по школе. До конца модуля 2 недели — 5 задач требуют внимания.',
-    students:      312,
-    groups:        24,
-    moduleProgress: 62
-  },
-
-  statCards: [
-    { icon: '👥', title: 'Группы',        desc: 'Состав, расписание, преподаватели',       value: 24,  delta: '+2 за месяц',     to: '/admin/groups'   },
-    { icon: '🎓', title: 'Ученики',        desc: 'Карточки, оплата, прогресс, баллы',       value: 312, delta: '+16 за месяц',    to: '/admin/students' },
-    { icon: '📚', title: 'Преподаватели',  desc: 'Нагрузка, ставка, предметы',              value: 18,  delta: '1 в найме',       to: '/admin/teachers' },
-    { icon: '📋', title: 'Мастер-задач',   desc: 'Дедлайны, регулярные задания, описания',  value: 47,  delta: '5 на этой неделе', to: '/admin/tasks'   }
-  ],
-
-  quickActions: [
-    { label: 'Новая группа',  sub: 'Расписание',            type: 'group'   as ModalType },
-    { label: 'Новый ученик',  sub: 'Карточка · контакт',    type: 'student' as ModalType },
-    { label: 'Преподаватель', sub: 'Ставка · предметы',     type: 'teacher' as ModalType },
-    { label: 'Задача',        sub: 'Дедлайн, регулярность', type: 'task'    as ModalType }
-  ],
-
-  lessons: [
-    { id: 1, subject: 'JS — Асинхронность', group: 'WebDev-2024-A', date: '29 апр.', time: '19:00' },
-    { id: 2, subject: 'Python — Алгоритмы', group: 'Algo-Jr-3',     date: '29 апр.', time: '19:00' },
-    { id: 3, subject: 'Frontend — Лендинг', group: 'Front-Adv-1',   date: '30 апр.', time: '19:00' },
-    { id: 4, subject: 'Робототехника',      group: 'Robo-Mid-B',     date: '30 апр.', time: '19:30' }
-  ],
-
-  activity: [
-    { id: 1, text: 'Анна Кузьмина зарегистрирована в Алгоритмике',   time: '5 мин. назад' },
-    { id: 2, text: 'Создана задача «Проект к финалу» · регулярная',   time: '5 мин.'       },
-    { id: 3, text: 'Е. Петрова обновила расписание Front-Adv-1',      time: '4 мин.'       },
-    { id: 4, text: 'Платёж просрочен · М. Соколов',                   time: '1 час'        }
-  ],
-
-  alerts: [
-    { id: 1, text: '3 просроченные задачи мастера',    to: '/admin/tasks'    },
-    { id: 2, text: '2 ученика с просроченной оплатой', to: '/admin/students' },
-    { id: 3, text: '1 группа без преподавателя',       to: '/admin/groups'   }
-  ]
-}
+const { data, refresh } = await useAsyncData('admin-dashboard', () =>
+  api<any>('/admin/dashboard'),
+)
 </script>
 
 <template>
-  <div class="adm">
+  <div v-if="data" class="adm">
 
     <!-- Hero -->
     <div class="adm-hero">
@@ -207,7 +163,7 @@ const data = {
       <p class="adm-section-label">БЫСТРЫЕ ДЕЙСТВИЯ</p>
       <div class="adm-quick">
         <button
-          v-for="action in data.quickActions"
+          v-for="action in quickActions"
           :key="action.label"
           class="adm-quick-btn"
           @click="openModal(action.type)"

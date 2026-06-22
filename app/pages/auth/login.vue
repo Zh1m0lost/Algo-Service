@@ -1,6 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
+const { login: signIn, homePath } = useAuth()
+
 const login = ref('')
 const password = ref('')
 const remember = ref(false)
@@ -8,29 +10,18 @@ const loading = ref(false)
 
 const error = ref('')
 
-// Мок-учётные данные:
-//   ученик:        std   / qq
-//   преподаватель: pd    / qq
-//   администратор: admin / qq
-// TODO: заменить на useFetch('/api/auth/login', { method: 'POST', body: { login, password, remember } })
-const MOCK_USERS: Record<string, { password: string; redirect: string }> = {
-  std:   { password: 'qq', redirect: '/student' },
-  pd:    { password: 'qq', redirect: '/teacher' },
-  admin: { password: 'qq', redirect: '/admin'   }
-}
-
 async function handleLogin() {
   if (!login.value || !password.value) return
   error.value = ''
   loading.value = true
   try {
-    await new Promise(r => setTimeout(r, 400))
-    const user = MOCK_USERS[login.value]
-    if (!user || user.password !== password.value) {
-      error.value = 'Неверный логин или пароль'
-      return
-    }
-    await navigateTo(user.redirect)
+    const user = await signIn(login.value, password.value)
+    await navigateTo(homePath(user.role))
+  } catch (e: any) {
+    error.value =
+      e?.data?.errors?.login?.[0] ||
+      e?.data?.message ||
+      'Неверный логин или пароль'
   } finally {
     loading.value = false
   }

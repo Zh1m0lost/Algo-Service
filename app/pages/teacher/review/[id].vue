@@ -4,70 +4,27 @@ definePageMeta({ layout: 'teacher' })
 const route  = useRoute()
 const router = useRouter()
 
-const allReviews: Record<number, any> = {
-  1: {
-    student: { name: 'Иван Иванов', initials: 'ИИ' },
-    task: 'Frontend — Лендинг HTML/CSS Про',
-    deadline: '28 апреля 2026', submittedAt: '26 апреля 2026, 17:42',
-    points: 100, tags: ['HTML / CSS'],
-    description: 'Разработать адаптивную landing page используя HTML5 и CSS3. Страница должна корректно отображаться на всех популярных разрешениях экрана — от 320px до 1920px.',
-    file: { name: 'landing_ivanov.zip', date: '26 апреля 2026, 17:42' },
-    comments: [
-      { id: 1, initials: 'ЕП', author: 'Елена Петровна', role: 'teacher', roleLabel: 'Преподаватель', date: '21 апр., 14:20', text: 'Иван, обратите внимание — в вашем коде не хватает тега <meta name="viewport">.' },
-      { id: 2, initials: 'ИИ', author: 'Иван Иванов',    role: 'student', roleLabel: 'Ученик',         date: '21 апр., 15:04', text: 'Спасибо! Я добавил viewport meta и проверил на реальном устройстве — всё корректно.' }
-    ]
-  },
-  2: {
-    student: { name: 'Мария Смирнова', initials: 'МС' },
-    task: 'JS — Работа с массивами',
-    deadline: '30 апреля 2026', submittedAt: '29 апреля 2026, 21:10',
-    points: 80, tags: ['JavaScript'],
-    description: 'Реализовать набор функций для работы с массивами: фильтрация, трансформация и агрегация данных с использованием методов map, filter, reduce.',
-    file: { name: 'arrays_smirnova.js', date: '29 апреля 2026, 21:10' },
-    comments: [
-      { id: 1, initials: 'МС', author: 'Мария Смирнова', role: 'student', roleLabel: 'Ученик', date: '29 апр., 21:15', text: 'Сдала работу, всё реализовала через цепочку методов.' }
-    ]
-  },
-  3: {
-    student: { name: 'Алексей Козлов', initials: 'АК' },
-    task: 'Алгоритмы — Сортировки',
-    deadline: '25 апреля 2026', submittedAt: '24 апреля 2026, 18:00',
-    points: 90, tags: ['Алгоритмы'],
-    description: 'Реализовать и сравнить алгоритмы сортировки: пузырьковая, быстрая, сортировка слиянием. Замерить время выполнения на массивах разного размера.',
-    file: { name: 'sort_kozlov.py', date: '24 апреля 2026, 18:00' },
-    comments: []
-  },
-  4: {
-    student: { name: 'Дарья Михайлова', initials: 'ДМ' },
-    task: 'Python — ООП',
-    deadline: '1 мая 2026', submittedAt: '30 апреля 2026, 14:33',
-    points: 120, tags: ['Python', 'ООП'],
-    description: 'Спроектировать систему классов для интернет-магазина: Product, Cart, Order. Реализовать наследование, инкапсуляцию и полиморфизм.',
-    file: { name: 'oop_mikhailova.py', date: '30 апреля 2026, 14:33' },
-    comments: [
-      { id: 1, initials: 'ЕП', author: 'Елена Петровна', role: 'teacher', roleLabel: 'Преподаватель', date: '30 апр., 16:00', text: 'Дарья, хорошая структура классов. Проверьте метод __str__ в классе Order.' },
-      { id: 2, initials: 'ДМ', author: 'Дарья Михайлова', role: 'student', roleLabel: 'Ученик',       date: '30 апр., 17:20', text: 'Исправила, добавила __repr__ тоже.' }
-    ]
-  },
-  5: {
-    student: { name: 'Пётр Николаев', initials: 'ПН' },
-    task: 'Frontend — Лендинг',
-    deadline: '3 мая 2026', submittedAt: '2 мая 2026, 23:50',
-    points: 100, tags: ['HTML / CSS'],
-    description: 'Создать простую landing page по макету. Адаптив на мобильные устройства обязателен.',
-    file: { name: 'landing_nikolaev.zip', date: '2 мая 2026, 23:50' },
-    comments: []
-  }
-}
 
-const id   = Number(route.params.id)
-const data = allReviews[id] ?? allReviews[1]
+const api = useApi()
+const { user } = useAuth()
+const id = route.params.id as string
+
+const { data } = await useAsyncData(`teacher-review-${id}`, () =>
+  api<any>(`/teacher/review/${id}`),
+)
 
 const grade      = ref<number | null>(null)
-const earnedPts  = ref<number>(data.points)
+const earnedPts  = ref<number>(0)
 const feedback   = ref('')
 const newComment = ref('')
-const comments   = ref([...data.comments])
+const comments   = ref<any[]>([])
+
+watchEffect(() => {
+  if (data.value) {
+    earnedPts.value = data.value.points
+    comments.value = [...(data.value.comments ?? [])]
+  }
+})
 
 const toast = reactive({ show: false, text: '', type: 'success' })
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -80,10 +37,23 @@ function showToast(text: string, type = 'success') {
   toastTimer = setTimeout(() => { toast.show = false }, 2500)
 }
 
-function submitReview() {
+async function submitReview() {
   if (grade.value === null) { showToast('Выберите оценку', 'error'); return }
-  // TODO: POST /api/teacher/review/:id { grade, points, feedback }
-  showToast('Оценка выставлена')
+  try {
+    await api(`/teacher/review/${id}`, {
+      method: 'POST',
+      body: { grade: grade.value, points: earnedPts.value, feedback: feedback.value },
+    })
+    showToast('Оценка выставлена')
+  } catch {
+    showToast('Не удалось сохранить оценку', 'error')
+  }
+}
+
+function teacherInitials() {
+  return (user.value?.name ?? '')
+    .split(' ').filter(Boolean).slice(0, 2)
+    .map(w => w[0]?.toUpperCase() ?? '').join('')
 }
 
 function sendComment() {
@@ -91,13 +61,13 @@ function sendComment() {
   const now = new Date()
   const dateStr = now.toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace(',', '')
   comments.value.push({
-    id: Date.now(), initials: 'ЕП', author: 'Елена Петровна',
+    id: Date.now(), initials: teacherInitials(), author: user.value?.name ?? 'Преподаватель',
     role: 'teacher', roleLabel: 'Преподаватель', date: dateStr, text: newComment.value.trim()
   })
   newComment.value = ''
 }
 
-function deleteComment(id: number) {
+function deleteComment(id: number | string) {
   comments.value = comments.value.filter(c => c.id !== id)
 }
 
@@ -105,7 +75,7 @@ function goBack() { router.back() }
 </script>
 
 <template>
-  <div class="rv-page">
+  <div v-if="data" class="rv-page">
 
     <!-- Шапка -->
     <div class="rv-header">
@@ -137,8 +107,11 @@ function goBack() { router.back() }
               <tr>
                 <td class="rv-table__key">Файл</td>
                 <td class="rv-table__val">
-                  <span class="rv-file">📄 {{ data.file.name }}</span>
-                  <span class="rv-file-date">· {{ data.file.date }}</span>
+                  <template v-if="data.file">
+                    <span class="rv-file">📄 {{ data.file.name }}</span>
+                    <span class="rv-file-date">· {{ data.file.date }}</span>
+                  </template>
+                  <span v-else class="rv-file-date">— файл не прикреплён</span>
                 </td>
               </tr>
             </tbody>

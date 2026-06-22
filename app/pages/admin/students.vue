@@ -5,17 +5,17 @@ type Student = { id:number; initials:string; color:string; name:string; group:st
 
 const avatarColors = ['#F5A623','#7B5EA7','#E8823A','#D4A017','#6B8FA8','#5B7EA6','#3A9A8A','#4A8C5C','#57A86B','#A07BC0']
 
-const items = ref<Student[]>([
-  { id:1, initials:'АК', color:'#F5A623', name:'Анна Кузьмина',    group:'Algo-Jr-3',     parent:'Ольга Кузьмина',    phone:'+7 (916) 234-12-99', payment:'paid',    points:1240 },
-  { id:2, initials:'МС', color:'#7B5EA7', name:'Михаил Соколов',   group:'WebDev-2024-A', parent:'Игорь Соколов',     phone:'+7 (903) 110-44-21', payment:'overdue', points:860  },
-  { id:3, initials:'ПЛ', color:'#E8823A', name:'Полина Лебедева',  group:'Front-Adv-1',   parent:'Ирина Лебедева',    phone:'+7 (925) 770-09-08', payment:'paid',    points:1820 },
-  { id:4, initials:'ЯО', color:'#D4A017', name:'Ярослав Орлов',    group:'Robo-Mid-B',    parent:'Сергей Орлов',      phone:'+7 (917) 312-56-77', payment:'paid',    points:430  },
-  { id:5, initials:'СЗ', color:'#6B8FA8', name:'Софья Зуева',      group:'Python-Kids-2', parent:'Анна Зуева',        phone:'+7 (929) 008-12-43', payment:'pending', points:720  },
-  { id:6, initials:'АБ', color:'#5B7EA6', name:'Артём Беляев',     group:'GameDev-Teen',  parent:'Елена Беляева',     phone:'+7 (916) 998-45-12', payment:'paid',    points:1010 },
-  { id:7, initials:'КН', color:'#3A9A8A', name:'Кира Никитина',    group:'AI-Lab-1',      parent:'Александр Никитин', phone:'+7 (903) 220-78-90', payment:'paid',    points:990  },
-  { id:8, initials:'ТГ', color:'#4A8C5C', name:'Тимур Гордеев',    group:'WebDev-2024-A', parent:'Айгуль Гордеева',   phone:'+7 (925) 644-23-15', payment:'paid',    points:1380 },
-  { id:9, initials:'МВ', color:'#57A86B', name:'Мария Васнецова',  group:'Scratch-Start', parent:'Светлана Васнецова',phone:'+7 (917) 110-22-39', payment:'pending', points:60   }
-])
+const api = useApi()
+const { data, refresh } = await useAsyncData('admin-students', () =>
+  api<any[]>('/admin/students'),
+)
+const items = computed(() =>
+  (data.value ?? []).map((s: any, i: number) => ({
+    ...s,
+    initials: mkInitials(s.name),
+    color: avatarColors[i % avatarColors.length],
+  })),
+)
 
 const paymentMap: Record<string, { label: string; cls: string }> = {
   paid:    { label: 'оплачено',   cls: 'al-badge--green'  },
@@ -58,15 +58,16 @@ function mkInitials(name: string) {
   return name.split(' ').filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join('')
 }
 
-function submitAdd() {
+async function submitAdd() {
   if (!form.name.trim()) return
-  items.value.push({
-    id: Date.now(),
-    initials: mkInitials(form.name),
-    color: avatarColors[items.value.length % avatarColors.length],
-    name: form.name, group: form.group, parent: form.parent,
-    phone: form.phone, payment: form.payment, points: form.points
+  await api('/admin/students', {
+    method: 'POST',
+    body: {
+      name: form.name, group: form.group, parent: form.parent,
+      phone: form.phone, payment: form.payment, points: form.points,
+    },
   })
+  await refresh()
   showAdd.value = false
   Object.assign(form, { name:'', group:'', parent:'', phone:'', payment:'paid', points:0 })
   showToast('Ученик добавлен')

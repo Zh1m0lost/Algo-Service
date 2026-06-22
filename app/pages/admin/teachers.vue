@@ -5,15 +5,17 @@ type Teacher = { id:number; initials:string; color:string; name:string; subject:
 
 const avatarColors = ['#F5A623','#7B5EA7','#E8823A','#D4A017','#6B8FA8','#3A9A8A','#8A8A9A','#A07BC0','#5B7EA6']
 
-const items = ref<Teacher[]>([
-  { id:1, initials:'АВ', color:'#F5A623', name:'Алексей Воронцов',  subject:'Программирование (Python)', email:'alex.v@algorithmika.ru',  phone:'+7 (916) 555-12-34', status:'active',    rate:1450 },
-  { id:2, initials:'ЕГ', color:'#7B5EA7', name:'Екатерина Громова', subject:'Web-разработка',            email:'e.gromova@algo.ru',        phone:'+7 (903) 220-45-67', status:'active',    rate:1580 },
-  { id:3, initials:'ДС', color:'#E8823A', name:'Дмитрий Соболев',   subject:'Robotics',                  email:'d.sobolev@algo.ru',        phone:'+7 (925) 780-90-12', status:'probation', rate:1200 },
-  { id:4, initials:'АФ', color:'#D4A017', name:'Анна Филатова',     subject:'GameDev',                   email:'anna.f@algo.com',          phone:'+7 (917) 342-78-90', status:'active',    rate:1650 },
-  { id:5, initials:'МО', color:'#6B8FA8', name:'Максим Орлов',      subject:'Scratch & логика',          email:'m.orlov@algorithmika.ru',  phone:'+7 (929) 111-22-33', status:'pending',   rate:1100 },
-  { id:6, initials:'ТС', color:'#3A9A8A', name:'Татьяна Смирнова',  subject:'AI / ML',                   email:'t.smirnova@algokids.ru',   phone:'+7 (916) 988-45-67', status:'active',    rate:1750 },
-  { id:7, initials:'ИМ', color:'#8A8A9A', name:'Игорь Морозов',     subject:'Web-разработка',            email:'igor.m@code-school.ru',    phone:'+7 (903) 777-33-88', status:'probation', rate:1250 }
-])
+const api = useApi()
+const { data, refresh } = await useAsyncData('admin-teachers', () =>
+  api<any[]>('/admin/teachers'),
+)
+const items = computed(() =>
+  (data.value ?? []).map((t: any, i: number) => ({
+    ...t,
+    initials: mkInitials(t.name),
+    color: avatarColors[i % avatarColors.length],
+  })),
+)
 
 const statusMap: Record<string, { label: string; cls: string }> = {
   active:    { label: 'активный',  cls: 'al-badge--green'  },
@@ -56,15 +58,16 @@ function mkInitials(name: string) {
   return name.split(' ').filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join('')
 }
 
-function submitAdd() {
+async function submitAdd() {
   if (!form.name.trim()) return
-  items.value.push({
-    id: Date.now(),
-    initials: mkInitials(form.name),
-    color: avatarColors[items.value.length % avatarColors.length],
-    name: form.name, subject: form.subject, email: form.email,
-    phone: form.phone, status: form.status, rate: form.rate
+  await api('/admin/teachers', {
+    method: 'POST',
+    body: {
+      name: form.name, subject: form.subject, email: form.email,
+      phone: form.phone, status: form.status, rate: form.rate,
+    },
   })
+  await refresh()
   showAdd.value = false
   Object.assign(form, { name:'', subject:'', email:'', phone:'', status:'active', rate:1200 })
   showToast('Преподаватель добавлен')

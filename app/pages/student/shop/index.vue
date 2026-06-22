@@ -4,35 +4,20 @@ import cartIcon   from '~/assets/icons/shopping-cart.svg'
 
 definePageMeta({ layout: 'student' })
 
-// TODO: заменить на useFetch('/api/student/shop')
-const balance = reactive({
-  total:     1240,
-  thisMonth: 180,
-  level:     'Продвинутый',
-  toNext:    260
+const api = useApi()
+const { data: shop } = await useAsyncData('student-shop', () => api<any>('/student/shop'))
+
+const balance = reactive({ total: 0, thisMonth: 0, level: '', toNext: 0 })
+const transactions = ref<any[]>([])
+const products = ref<any[]>([])
+
+watchEffect(() => {
+  if (shop.value) {
+    Object.assign(balance, shop.value.balance)
+    transactions.value = [...shop.value.transactions]
+    products.value = [...shop.value.products]
+  }
 })
-
-const transactions = ref([
-  { id: 1, type: 'homework', title: 'Домашка: Алгоритмы и структуры данных', date: '22 апр. 2026', amount:  100 },
-  { id: 2, type: 'homework', title: 'Домашка: JavaScript Основы',            date: '18 апр. 2026', amount:   80 },
-  { id: 3, type: 'purchase', title: 'Покупка: Футболка АлгоСервис',          date: '10 апр. 2026', amount: -200 },
-  { id: 4, type: 'homework', title: 'Домашка: CSS Flexbox и Grid',           date: '10 апр. 2026', amount:   60 },
-  { id: 5, type: 'homework', title: 'Домашка: Git и GitHub',                 date: '5 апр. 2026',  amount:   50 }
-])
-
-const data = {
-  products: [
-    { id: 1, emoji: '👕', bg: '#EAF0FF', title: 'Футболка Алгоритмика',    desc: 'Мягкий хлопок, логотип АлгоСервис на груди. Размеры S-XXL.',                        price: 500,  badge: 'hit'  },
-    { id: 2, emoji: '🧢', bg: '#E8F4FF', title: 'Кепка «Code»',            desc: 'Регулируемый ремешок, вышивка спереди. Один размер.',                               price: 350,  badge: null   },
-    { id: 3, emoji: '🎒', bg: '#FFE8E8', title: 'Рюкзак АлгоСервис',       desc: '24л, ноутбук до 15", усиленный корпус.',                                             price: 1200, badge: null   },
-    { id: 4, emoji: '☕', bg: '#FFF5E8', title: 'Кружка "Hello World"',     desc: 'Керамика 400мл, двухстенная. Держит тепло 3 часа.',                                 price: 300,  badge: 'new'  },
-    { id: 5, emoji: '🖱️', bg: '#EAF0FF', title: 'Коврик для мыши',          desc: 'XL 80×40 см, нескользящее основание. Принт с кодом.',                               price: 280,  badge: null   },
-    { id: 6, emoji: '📦', bg: '#F0F8E8', title: 'Стикерпак «Dev Life»',     desc: '30 виниловых стикеров с программистскими мемами.',                                  price: 120,  badge: 'sale' },
-    { id: 7, emoji: '🏆', bg: '#FFFAE0', title: 'Сертификат PRO на месяц', desc: 'Доступ к расширенным курсам и приоритетной поддержке.',                              price: 800,  badge: null,  cardBg: '#FFFBEC' },
-    { id: 8, emoji: '🎧', bg: '#F0F0F0', title: 'Наушники с лого',          desc: 'Bluetooth 5.0, 20 часов музыки, складные.',                                         price: 1500, badge: null   },
-    { id: 9, emoji: '📓', bg: '#E8F0FF', title: 'Блокнот разработчика',     desc: 'А5, 120 страниц в клетку. Обложка из натуральной кожи.',                            price: 250,  badge: 'new'  }
-  ]
-}
 
 const badgeMap: Record<string, { label: string; cls: string }> = {
   hit:  { label: 'Хит',     cls: 'shop-product__badge--hit'  },
@@ -40,27 +25,23 @@ const badgeMap: Record<string, { label: string; cls: string }> = {
   sale: { label: 'Скидка',  cls: 'shop-product__badge--sale' }
 }
 
-const selectedProduct = ref<typeof data.products[0] | null>(null)
+const selectedProduct = ref<any | null>(null)
 const purchaseDone    = ref(false)
 
-function openBuy(product: typeof data.products[0]) {
+function openBuy(product: any) {
   if (product.price > balance.total) return
   selectedProduct.value = product
   purchaseDone.value = false
 }
 
-function confirmPurchase() {
+async function confirmPurchase() {
   if (!selectedProduct.value) return
-  // TODO: POST /api/student/shop/buy { productId: selectedProduct.value.id }
-  const price = selectedProduct.value.price
-  balance.total -= price
-  transactions.value.unshift({
-    id:     Date.now(),
-    type:   'purchase',
-    title:  `Покупка: ${selectedProduct.value.title}`,
-    date:   new Date().toLocaleString('ru', { day: 'numeric', month: 'short', year: 'numeric' }),
-    amount: -price
+  const res = await api<any>('/student/shop/buy', {
+    method: 'POST',
+    body: { productId: selectedProduct.value.id },
   })
+  balance.total = res.balance
+  transactions.value.unshift(res.transaction)
   purchaseDone.value = true
   setTimeout(() => { selectedProduct.value = null }, 1200)
 }
@@ -139,7 +120,7 @@ function shortage(price: number) {
 
       <div class="shop-grid">
         <div
-          v-for="product in data.products"
+          v-for="product in products"
           :key="product.id"
           class="shop-product"
           :style="product.cardBg ? { background: product.cardBg } : {}"

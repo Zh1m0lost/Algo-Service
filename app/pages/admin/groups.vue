@@ -3,15 +3,11 @@ definePageMeta({ layout: 'admin' })
 
 type Group = { id:number; name:string; subject:string; teacher:string; students:number; schedule:string; format:string; progress:number; status:'active'|'finishing'|'draft'|'archive' }
 
-const items = ref<Group[]>([
-  { id:1, name:'WebDev-2024-A', subject:'Frontend',     teacher:'Елена Петровна',  students:14, schedule:'Пн/Ср · 18:00', format:'Онлайн', progress:62,  status:'active'    },
-  { id:2, name:'Algo-Jr-3',     subject:'Алгоритмика',  teacher:'Сергей Михайлов', students:12, schedule:'Вт/Чт · 17:00', format:'Офлайн', progress:48,  status:'active'    },
-  { id:3, name:'Front-Adv-1',   subject:'Frontend Pro', teacher:'Елена Петровна',  students:8,  schedule:'Сб · 11:00',    format:'Гибрид', progress:81,  status:'active'    },
-  { id:4, name:'Python-Kids-2', subject:'Python',       teacher:'Мария Северова',  students:11, schedule:'Пн/Чт · 16:00',format:'Онлайн', progress:90,  status:'finishing' },
-  { id:5, name:'Scratch-Start', subject:'Scratch',      teacher:'—',               students:6,  schedule:'Сб · 10:00',    format:'Офлайн', progress:0,   status:'draft'     },
-  { id:6, name:'Al-Lab-1',      subject:'AI / ML',      teacher:'Дмитрий Сычёв',   students:7,  schedule:'Вт · 19:00',    format:'Гибрид', progress:33,  status:'active'    },
-  { id:7, name:'WebDev-2023-Z', subject:'Frontend',     teacher:'Елена Петровна',  students:13, schedule:'архив',          format:'—',      progress:100, status:'archive'   }
-])
+const api = useApi()
+const { data, refresh } = await useAsyncData('admin-groups', () =>
+  api<any[]>('/admin/groups'),
+)
+const items = computed(() => data.value ?? [])
 
 const statusMap: Record<string, { label: string; cls: string }> = {
   active:    { label: 'активна',     cls: 'al-badge--green'  },
@@ -52,14 +48,16 @@ function showToast(text: string) {
   toastTimer = setTimeout(() => { toast.show = false }, 2500)
 }
 
-function submitAdd() {
+async function submitAdd() {
   if (!form.name.trim()) return
-  items.value.push({
-    id: Date.now(),
-    name: form.name, subject: form.subject, teacher: form.teacher || '—',
-    students: form.students, schedule: form.schedule || '—',
-    format: form.format, progress: 0, status: form.status
+  await api('/admin/groups', {
+    method: 'POST',
+    body: {
+      name: form.name, subject: form.subject, teacher: form.teacher,
+      schedule: form.schedule, format: form.format, status: form.status,
+    },
   })
+  await refresh()
   showAdd.value = false
   Object.assign(form, { name:'', subject:'', teacher:'', students:0, schedule:'', format:'Онлайн', status:'active' })
   showToast('Группа добавлена')

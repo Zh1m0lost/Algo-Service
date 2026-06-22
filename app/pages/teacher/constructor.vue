@@ -76,7 +76,20 @@ const totalPairs = computed(() => Math.min(leftItems.value.length, rightItems.va
 const savedToast = ref(false)
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
-function saveTask() {
+async function saveTask() {
+  try {
+    await useApi()('/teacher/tasks', {
+      method: 'POST',
+      body: {
+        name: taskName.value,
+        points: points.value,
+        leftItems: leftItems.value,
+        rightItems: rightItems.value,
+      },
+    })
+  } catch {
+    // ошибку сохранения тоже подсветим тостом ниже
+  }
   if (toastTimer) clearTimeout(toastTimer)
   savedToast.value = true
   toastTimer = setTimeout(() => { savedToast.value = false }, 2500)

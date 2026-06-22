@@ -4,32 +4,9 @@ import checkIcon from '~/assets/icons/YellowGalochka.svg'
 
 definePageMeta({ layout: 'student' })
 
-const data = {
-  balance: { total: 1240, level: 'Продвинутый', toNext: 260 },
-
-  stats: {
-    earned:    1440,
-    spent:     200,
-    thisMonth: 180
-  },
-
-  transactions: [
-    { id:  1, type: 'homework', title: 'Домашка: Алгоритмы и структуры данных', date: '22 апр. 2026', month: 'Апрель 2026', amount:  100 },
-    { id:  2, type: 'homework', title: 'Домашка: JavaScript Основы',            date: '18 апр. 2026', month: 'Апрель 2026', amount:   80 },
-    { id:  3, type: 'purchase', title: 'Покупка: Футболка АлгоСервис',          date: '10 апр. 2026', month: 'Апрель 2026', amount: -200 },
-    { id:  4, type: 'homework', title: 'Домашка: CSS Flexbox и Grid',           date: '10 апр. 2026', month: 'Апрель 2026', amount:   60 },
-    { id:  5, type: 'homework', title: 'Домашка: Git и GitHub',                 date: '5 апр. 2026',  month: 'Апрель 2026', amount:   50 },
-    { id:  6, type: 'homework', title: 'Домашка: Основы HTML',                  date: '28 мар. 2026', month: 'Март 2026',   amount:   80 },
-    { id:  7, type: 'homework', title: 'Домашка: Python — Списки и циклы',      date: '22 мар. 2026', month: 'Март 2026',   amount:  100 },
-    { id:  8, type: 'homework', title: 'Домашка: Введение в программирование',  date: '15 мар. 2026', month: 'Март 2026',   amount:   60 },
-    { id:  9, type: 'homework', title: 'Домашка: Алгоритм Дейкстры',            date: '8 мар. 2026',  month: 'Март 2026',   amount:  120 },
-    { id: 10, type: 'homework', title: 'Домашка: Рекурсия',                     date: '1 мар. 2026',  month: 'Март 2026',   amount:   80 },
-    { id: 11, type: 'homework', title: 'Домашка: Сортировки',                   date: '22 фев. 2026', month: 'Февраль 2026',amount:  100 },
-    { id: 12, type: 'homework', title: 'Домашка: Стеки и очереди',              date: '14 фев. 2026', month: 'Февраль 2026',amount:  120 },
-    { id: 13, type: 'homework', title: 'Домашка: Связные списки',               date: '7 фев. 2026',  month: 'Февраль 2026',amount:  100 },
-    { id: 14, type: 'homework', title: 'Домашка: Деревья',                      date: '1 фев. 2026',  month: 'Февраль 2026',amount:   90 },
-  ]
-}
+const { data } = await useAsyncData('student-scores', () =>
+  useApi()<any>('/student/scores'),
+)
 
 const activeTab = ref<'all' | 'earned' | 'spent'>('all')
 
@@ -40,13 +17,14 @@ const tabs = [
 ] as const
 
 const filtered = computed(() => {
-  if (activeTab.value === 'earned') return data.transactions.filter(t => t.amount > 0)
-  if (activeTab.value === 'spent')  return data.transactions.filter(t => t.amount < 0)
-  return data.transactions
+  const txs = data.value?.transactions ?? []
+  if (activeTab.value === 'earned') return txs.filter((t: any) => t.amount > 0)
+  if (activeTab.value === 'spent')  return txs.filter((t: any) => t.amount < 0)
+  return txs
 })
 
 const grouped = computed(() => {
-  const map: Record<string, typeof data.transactions> = {}
+  const map: Record<string, any[]> = {}
   for (const tx of filtered.value) {
     if (!map[tx.month]) map[tx.month] = []
     map[tx.month].push(tx)
@@ -56,7 +34,7 @@ const grouped = computed(() => {
 </script>
 
 <template>
-  <div class="sc-page">
+  <div v-if="data" class="sc-page">
 
     <!-- Hero -->
     <div class="sc-hero">

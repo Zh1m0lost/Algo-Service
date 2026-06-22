@@ -1,59 +1,17 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'teacher' })
 
-// TODO: заменить на useFetch('/api/teacher/dashboard')
-const data = {
-  teacher: { name: 'Елена Петровна' },
-  date: 'Понедельник, 27 апреля 2026',
 
-  stats: {
-    groups:      6,
-    onReview:    7,
-    todayLessons: 2
-  },
+const quickActions = [
+  { icon: '📅', title: 'Расписание',       desc: 'Занятия на неделю и таск-трекер',  to: '/teacher/schedule'    },
+  { icon: '📄', title: 'Домашние задания',  desc: 'Создать и выдать задания',          to: '/teacher/homework'    },
+  { icon: '🔧', title: 'Конструктор задач', desc: 'Создавать и редактировать задачи', to: '/teacher/constructor' },
+  { icon: '📖', title: 'Журнал баллов',     desc: 'Оценки и баллы по группам',        to: '/teacher/journal'     },
+]
 
-  quickActions: [
-    { icon: '📅', title: 'Расписание',        desc: 'Занятия на неделю и таск-трекер',    to: '/teacher/schedule'    },
-    { icon: '📄', title: 'Домашние задания',   desc: 'Создать и выдать задания',            to: '/teacher/homework'    },
-    { icon: '🔧', title: 'Конструктор задач',  desc: 'Создавать и редактировать задачи',   to: '/teacher/constructor' },
-    { icon: '📖', title: 'Журнал баллов',      desc: 'Оценки и баллы по группам',          to: '/teacher/journal'     }
-  ],
-
-  todayLessons: [
-    {
-      id: 1,
-      title:   'JavaScript — Асинхронность и промисы',
-      group:   'WebDev-2024-B',
-      format:  'Zoom',
-      time:    '18:00–19:30',
-      color:   '#602B7A',
-      status:  'start'
-    },
-    {
-      id: 2,
-      title:   'Python — ООП и классы',
-      group:   'Python-2024-A',
-      format:  'Zoom',
-      time:    '20:00–21:30',
-      color:   '#56B835',
-      status:  'prepare'
-    }
-  ],
-
-  tasks: {
-    today: [
-      { id: 1, title: 'Проверить ДЗ по HTML/CSS (WebDev-B)', urgent: true, meta: '7 работ · сегодня' },
-      { id: 2, title: 'Выставить оценки за контрольную',      urgent: true, meta: 'Python-A · сегодня' }
-    ],
-    week: [
-      { id: 3, title: 'Подготовить материалы к занятию',  urgent: false, meta: 'WebDev-2024-B · среда' },
-      { id: 4, title: 'Составить тест по JavaScript',     urgent: false, meta: 'до пятницы' }
-    ],
-    overdue: [
-      { id: 5, title: 'Ответить на вопросы в чате',       urgent: true,  meta: 'Python-A · 2 дня назад' }
-    ]
-  }
-}
+const { data } = await useAsyncData('teacher-dashboard', () =>
+  useApi()<any>('/teacher/dashboard'),
+)
 
 const activeTab = ref<'today' | 'week' | 'overdue'>('today')
 
@@ -63,11 +21,11 @@ const tabs = [
   { key: 'overdue', label: 'Просрочены'}
 ] as const
 
-const currentTasks = computed(() => data.tasks[activeTab.value])
+const currentTasks = computed(() => data.value?.tasks?.[activeTab.value] ?? [])
 </script>
 
 <template>
-  <div class="td">
+  <div v-if="data" class="td">
 
     <!-- Hero -->
     <div class="td-hero">
@@ -107,7 +65,7 @@ const currentTasks = computed(() => data.tasks[activeTab.value])
     <!-- Быстрые действия -->
     <div class="td-quick">
       <NuxtLink
-        v-for="action in data.quickActions"
+        v-for="action in quickActions"
         :key="action.title"
         :to="action.to"
         class="td-quick-card"

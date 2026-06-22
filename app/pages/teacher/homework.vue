@@ -3,31 +3,38 @@ import calendarIcon from '~/assets/icons/PerpleCalendar.svg'
 
 definePageMeta({ layout: 'teacher' })
 
+const api = useApi()
+const router = useRouter()
+
+const { data } = await useAsyncData('teacher-homework', () =>
+  api<any>('/teacher/homework'),
+)
+
+const tasks         = computed<string[]>(() => data.value?.tasks ?? [])
+const students      = computed<string[]>(() => data.value?.students ?? [])
+const groups        = computed<string[]>(() => data.value?.groups ?? [])
+const pendingReview = computed<any[]>(() => data.value?.pendingReview ?? [])
+
+const pointsOptions = ['60', '80', '100', '120', '150']
+const attemptsOptions = ['Неограниченно', '1', '2', '3', '5']
+const visibilityOptions = ['Сразу', 'После дедлайна', 'Вручную']
+
 const form = reactive({
-  task: 'Frontend разработка',
+  task: '',
   student: 'Всем',
-  group: 'Web-1-2026',
-  deadline: '07.05.2026',
+  group: '',
+  deadline: '',
   points: '100',
   attempts: 'Неограниченно',
   visibility: 'Сразу',
   comment: ''
 })
 
-const tasks = ['Frontend разработка', 'JavaScript: Массивы', 'Алгоритмы сортировки', 'Python ООП', 'CSS Grid']
-const students = ['Всем', 'Иван Иванов', 'Мария Смирнова', 'Алексей Козлов', 'Дарья Михайлова', 'Пётр Николаев']
-const groups = ['Web-1-2026', 'Web-2-2026', 'Python-A', 'Python-B', 'React-2025']
-const pointsOptions = ['60', '80', '100', '120', '150']
-const attemptsOptions = ['Неограниченно', '1', '2', '3', '5']
-const visibilityOptions = ['Сразу', 'После дедлайна', 'Вручную']
-
-const pendingReview = [
-  { id: 1, name: 'Иван Иванов',     task: 'Frontend — Лендинг HTML/\nCSS Про' },
-  { id: 2, name: 'Мария Смирнова',  task: 'JS — Работа с массивами' },
-  { id: 3, name: 'Алексей Козлов',  task: 'Алгоритмы — Сортировки' },
-  { id: 4, name: 'Дарья Михайлова', task: 'Python — ООП' },
-  { id: 5, name: 'Пётр Николаев',   task: 'Frontend — Лендинг' }
-]
+watch(data, (d) => {
+  if (!d) return
+  if (!form.task && d.tasks?.length) form.task = d.tasks[0]
+  if (!form.group && d.groups?.length) form.group = d.groups[0]
+}, { immediate: true })
 
 const toast = reactive({ show: false, text: '' })
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -39,10 +46,27 @@ function showToast(text: string) {
   toastTimer = setTimeout(() => { toast.show = false }, 2500)
 }
 
-function submit() { showToast('Задание выдано') }
+async function submit() {
+  try {
+    await api('/teacher/homework/assign', {
+      method: 'POST',
+      body: {
+        task: form.task,
+        group: form.group,
+        deadline: form.deadline,
+        points: Number(form.points),
+        comment: form.comment,
+      },
+    })
+    showToast('Задание выдано')
+  } catch {
+    showToast('Не удалось выдать задание')
+  }
+}
+
 function saveDraft() { showToast('Черновик сохранён') }
-const router = useRouter()
-function review(id: number) { router.push(`/teacher/review/${id}`) }
+
+function review(id: string) { router.push(`/teacher/review/${id}`) }
 </script>
 
 <template>

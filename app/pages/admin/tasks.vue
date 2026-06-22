@@ -18,71 +18,12 @@ const recurrenceOptions = [
   { label:'Ежедневно · Каждый рабочий день',  cls:'tk-pill--green'  },
 ]
 
-const items = ref<Task[]>([
-  {
-    id:1, title:'Финальный проект — Лендинг',
-    desc:'Разработать адаптивный landing page по требованиям из ТЗ. Сдача через GitHub Pages, после самопроверки.',
-    recurrence:{ label:'Однократно', cls:'tk-pill--gray' },
-    deadline:{ text:'28 апреля · 23:59', urgent:true },
-    assignee:{ name:'WebDev-2024-A', role:'группа' },
-    comment:{ author:'Е. Петровна', date:'21 апр', text:'Добавьте viewport-метатег.' },
-    urgency:'urgent'
-  },
-  {
-    id:2, title:'Еженедельная домашка по алгоритмам',
-    desc:'5 задач из практикума. Сдача — за 24 часа до следующего занятия.',
-    recurrence:{ label:'Еженедельно · Каждый понедельник', cls:'tk-pill--yellow' },
-    deadline:{ text:'Каждый Пн · 18:00', urgent:true },
-    assignee:{ name:'Algo-Jr-3', role:'группа' },
-    comment:{ author:'С. Михайлов', date:'27 апр', text:'3 ученика не сдали на этой неделе.' },
-    urgency:'soon'
-  },
-  {
-    id:3, title:'Заполнить журнал посещаемости',
-    desc:'Отметить присутствующих и выставить оценки за активность.',
-    recurrence:{ label:'По дням недели · Пн / Ср / Пт', cls:'tk-pill--yellow' },
-    deadline:{ text:'После каждого занятия', urgent:false },
-    assignee:{ name:'Все преподаватели', role:'преподаватель' },
-    comment:null,
-    urgency:'calm'
-  },
-  {
-    id:4, title:'Контроль оплаты — собрать просрочки',
-    desc:'Проверить статусы оплат, отправить напоминания родителям.',
-    recurrence:{ label:'Ежемесячно · 1-го числа', cls:'tk-pill--pink' },
-    deadline:{ text:'1 мая 2026', urgent:true },
-    assignee:{ name:'И. Иванов', role:'админ' },
-    comment:{ author:'И. Иванов', date:'01 апр', text:'В апреле — 3 случая.' },
-    urgency:'soon'
-  },
-  {
-    id:5, title:'Проверка лабораторных работ',
-    desc:'Ревью кода всех лаб. за модуль с обратной связью.',
-    recurrence:{ label:'Ежедневно · Каждый рабочий день', cls:'tk-pill--green' },
-    deadline:{ text:'до 22:00', urgent:false },
-    assignee:{ name:'Е. Петровна', role:'преподаватель' },
-    comment:{ author:'Е. Петровна', date:'сегодня', text:'Закрыто 12 из 14.' },
-    urgency:'calm'
-  },
-  {
-    id:6, title:'Подготовить материалы к новому модулю',
-    desc:'Презентации, демо-проекты, тесты для нового набора.',
-    recurrence:{ label:'Однократно', cls:'tk-pill--gray' },
-    deadline:{ text:'15 мая 2026', urgent:false },
-    assignee:{ name:'Е. Петровна, С. Михайлов', role:'преподаватель' },
-    comment:null,
-    urgency:'calm'
-  },
-  {
-    id:7, title:'Сдать ТЗ к концу недели',
-    desc:'Срок прошёл — задача в просрочке.',
-    recurrence:{ label:'Однократно', cls:'tk-pill--gray' },
-    deadline:{ text:'25 апр 2026', urgent:true },
-    assignee:{ name:'Front-Adv-1', role:'группа' },
-    comment:null,
-    urgency:'urgent'
-  }
-])
+
+const api = useApi()
+const { data, refresh } = await useAsyncData('admin-tasks', () =>
+  api<any[]>('/admin/tasks'),
+)
+const items = computed(() => data.value ?? [])
 
 const tabs = computed(() => [
   { key:'all',    label:'Все',      count: items.value.length },
@@ -119,18 +60,22 @@ function showToast(text: string) {
   toastTimer = setTimeout(() => { toast.show = false }, 2500)
 }
 
-function submitAdd() {
+async function submitAdd() {
   if (!form.title.trim()) return
-  items.value.push({
-    id: Date.now(),
-    title: form.title,
-    desc: form.desc,
-    recurrence: recurrenceOptions[form.recurrenceIdx],
-    deadline: { text: form.deadlineText || '—', urgent: form.deadlineUrgent },
-    assignee: { name: form.assigneeName || '—', role: form.assigneeRole },
-    comment: null,
-    urgency: form.urgency
+  await api('/admin/tasks', {
+    method: 'POST',
+    body: {
+      title: form.title,
+      desc: form.desc,
+      recurrence: recurrenceOptions[form.recurrenceIdx]?.label,
+      deadlineText: form.deadlineText,
+      deadlineUrgent: form.deadlineUrgent,
+      assigneeName: form.assigneeName,
+      assigneeRole: form.assigneeRole,
+      urgency: form.urgency,
+    },
   })
+  await refresh()
   showAdd.value = false
   Object.assign(form, { title:'', desc:'', recurrenceIdx:0, deadlineText:'', deadlineUrgent:false, assigneeName:'', assigneeRole:'группа', urgency:'calm' })
   showToast('Задача добавлена')
