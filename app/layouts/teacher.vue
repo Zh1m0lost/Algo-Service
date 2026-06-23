@@ -38,7 +38,7 @@ async function logout() {
       <div class="t-nav__inner">
         <NuxtLink to="/teacher" class="t-nav__link">Главная</NuxtLink>
         <span class="t-nav__sep">·</span>
-        <NuxtLink to="/teacher/create" class="t-nav__link">Мастер</NuxtLink>
+        <NuxtLink to="/teacher/create" class="t-nav__link">Курсы и уроки</NuxtLink>
         <span class="t-nav__sep">·</span>
         <NuxtLink to="/teacher/schedule" class="t-nav__link">Расписание</NuxtLink>
         <span class="t-nav__sep">·</span>

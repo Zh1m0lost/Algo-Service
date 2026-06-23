@@ -57,6 +57,84 @@ async function remove() {
     showToast('Не удалось удалить', false)
   }
 }
+
+// ── Уроки курса ──
+const lessons = ref<any[]>([])
+const loadingLessons = ref(false)
+async function loadLessons() {
+  loadingLessons.value = true
+  try {
+    lessons.value = await api<any[]>(`/admin/groups/${id}/lessons`)
+  } catch {
+    lessons.value = []
+  } finally {
+    loadingLessons.value = false
+  }
+}
+
+const lessonEditor = reactive({
+  open: false,
+  mode: 'new' as 'new' | 'edit',
+  id: '',
+  title: '',
+  date: '',
+  zoom: '',
+  goals: [''] as string[],
+})
+const savingLesson = ref(false)
+
+function startNewLesson() {
+  Object.assign(lessonEditor, { open: true, mode: 'new', id: '', title: '', date: '', zoom: '', goals: [''] })
+}
+function editLesson(l: any) {
+  Object.assign(lessonEditor, {
+    open: true, mode: 'edit', id: l.id,
+    title: l.title ?? '', date: l.dateInput ?? '', zoom: l.zoom ?? '',
+    goals: l.goals?.length ? [...l.goals] : [''],
+  })
+}
+function closeLessonEditor() { lessonEditor.open = false }
+function addGoal() { lessonEditor.goals.push('') }
+function removeGoal(i: number) { lessonEditor.goals.splice(i, 1); if (!lessonEditor.goals.length) lessonEditor.goals.push('') }
+
+async function saveLesson() {
+  if (!lessonEditor.title.trim()) { showToast('Введите название урока', false); return }
+  savingLesson.value = true
+  const body = {
+    title: lessonEditor.title.trim(),
+    date: lessonEditor.date || null,
+    zoom: lessonEditor.zoom || null,
+    goals: lessonEditor.goals.filter(g => g.trim()),
+  }
+  try {
+    if (lessonEditor.mode === 'new') {
+      await api(`/admin/groups/${id}/lessons`, { method: 'POST', body })
+      showToast('Урок создан')
+    } else {
+      await api(`/admin/lessons/${lessonEditor.id}`, { method: 'PUT', body })
+      showToast('Урок сохранён')
+    }
+    closeLessonEditor()
+    await loadLessons()
+  } catch {
+    showToast('Не удалось сохранить урок', false)
+  } finally {
+    savingLesson.value = false
+  }
+}
+
+async function removeLesson(l: any) {
+  if (!confirm(`Удалить урок «${l.title}»?`)) return
+  try {
+    await api(`/admin/lessons/${l.id}`, { method: 'DELETE' })
+    if (lessonEditor.id === l.id) closeLessonEditor()
+    await loadLessons()
+  } catch {
+    showToast('Не удалось удалить урок', false)
+  }
+}
+
+onMounted(loadLessons)
 </script>
 
 <template>
@@ -136,8 +214,167 @@ async function remove() {
       </div>
     </div>
 
+    <!-- Уроки курса -->
+    <div class="dt-card agl">
+      <div class="agl__head">
+        <p class="dt-card__label">УРОКИ КУРСА · {{ lessons.length }}</p>
+        <button class="dt-btn dt-btn--save agl__new" @click="startNewLesson">
+          <UiIcon name="plus" :size="15" /> Новый урок
+        </button>
+      </div>
+
+      <div v-if="loadingLessons" class="dt-empty">Загрузка…</div>
+      <div v-else-if="!lessons.length" class="dt-empty">В курсе пока нет уроков</div>
+      <div v-else class="agl__list">
+        <div v-for="l in lessons" :key="l.id" class="agl__row">
+          <div class="agl__info">
+            <span class="agl__title">{{ l.title }}</span>
+            <span class="agl__date">{{ l.date }} · {{ l.tasksCount }} заданий</span>
+          </div>
+          <div class="agl__actions">
+            <button class="agl__act" title="Редактировать" @click="editLesson(l)"><UiIcon name="edit" :size="16" /></button>
+            <button class="agl__act agl__act--del" title="Удалить" @click="removeLesson(l)"><UiIcon name="trash" :size="16" /></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Редактор урока -->
+      <div v-if="lessonEditor.open" class="agl__editor">
+        <div class="agl__head">
+          <p class="dt-card__label">{{ lessonEditor.mode === 'new' ? 'НОВЫЙ УРОК' : 'РЕДАКТИРОВАНИЕ УРОКА' }}</p>
+          <button class="agl__close" aria-label="Закрыть" @click="closeLessonEditor">✕</button>
+        </div>
+        <div class="dt-form">
+          <label class="dt-field dt-field--full">
+            <span class="dt-field__label">Название урока</span>
+            <input v-model="lessonEditor.title" class="dt-field__input" placeholder="JavaScript — Промисы" />
+          </label>
+          <label class="dt-field">
+            <span class="dt-field__label">Дата и время</span>
+            <input v-model="lessonEditor.date" type="datetime-local" class="dt-field__input" />
+          </label>
+          <label class="dt-field">
+            <span class="dt-field__label">Ссылка на Zoom</span>
+            <input v-model="lessonEditor.zoom" class="dt-field__input" placeholder="https://zoom.us/j/…" />
+          </label>
+        </div>
+
+        <p class="dt-card__label agl__sublabel">ЦЕЛИ УРОКА</p>
+        <div v-for="(g, i) in lessonEditor.goals" :key="i" class="agl__goal">
+          <input v-model="lessonEditor.goals[i]" class="dt-field__input" :placeholder="`Цель ${i + 1}`" />
+          <button class="agl__act agl__act--del" title="Удалить цель" @click="removeGoal(i)"><UiIcon name="trash" :size="16" /></button>
+        </div>
+        <button class="agl__add" @click="addGoal">+ Добавить цель</button>
+
+        <div class="dt-actions agl__editor-actions">
+          <button class="dt-btn dt-btn--save" :disabled="savingLesson" @click="saveLesson">
+            {{ savingLesson ? 'Сохранение…' : (lessonEditor.mode === 'new' ? 'Создать урок' : 'Сохранить урок') }}
+          </button>
+          <button class="dt-btn dt-btn--del" @click="closeLessonEditor">Отмена</button>
+        </div>
+      </div>
+    </div>
+
     <Transition name="toast">
       <div v-if="toast.show" class="al-toast" :class="{ 'al-toast--error': !toast.ok }">{{ toast.text }}</div>
     </Transition>
   </div>
 </template>
+
+<style scoped lang="scss">
+.agl__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agl__new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  font-size: 13px;
+}
+
+.agl__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agl__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--c-bg);
+}
+
+.agl__info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.agl__title { font-size: 15px; font-weight: 700; color: var(--c-text-dark); }
+.agl__date { font-size: 13px; color: var(--c-text-gray); }
+
+.agl__actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.agl__act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--c-white);
+  border-radius: var(--radius-sm);
+  color: var(--c-purple-text);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover { background: var(--c-purple-light); }
+  &--del { color: var(--c-red); &:hover { background: var(--c-red-light); } }
+}
+
+.agl__editor {
+  border-top: 1px solid #ECECEC;
+  padding-top: 16px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.agl__close {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: var(--c-bg);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--c-text-gray);
+  transition: background 0.15s, color 0.15s;
+  &:hover { background: var(--c-purple-light); color: var(--c-purple-text); }
+}
+
+.agl__sublabel { margin-top: 4px; }
+
+.agl__goal { display: flex; align-items: center; gap: 10px; }
+
+.agl__add {
+  align-self: flex-start;
+  padding: 7px 16px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--c-purple-text);
+  background: transparent;
+  color: var(--c-purple-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-main);
+  &:hover { background: var(--c-purple-light); }
+}
+
+.agl__editor-actions { margin-top: 4px; }
+</style>
