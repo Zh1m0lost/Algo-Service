@@ -25,6 +25,21 @@ function cellStyle(points: number | null) {
   return points !== null ? { background: 'var(--c-yellow-light)' } : {}
 }
 
+// Клик по ячейке — исправить/выставить балл: подставляем ученика, занятие и текущее значение в форму.
+function editCell(student: any, idx: number) {
+  form.studentId = student.id
+  form.lessonId  = lessons.value[idx]?.id ?? ''
+  form.points    = student.scores[idx] ?? 0
+  // Прокрутка к форме, чтобы исправление было очевидным.
+  if (import.meta.client) {
+    requestAnimationFrame(() => document.getElementById('jrn-grade-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+  }
+}
+
+// Подсказка: какой ученик/занятие сейчас редактируется.
+const editingStudent = computed(() => students.value.find((s: any) => s.id === form.studentId)?.name ?? '')
+const editingLesson  = computed(() => lessons.value.find((l: any) => l.id === form.lessonId)?.title ?? '')
+
 // Форма начисления баллов
 const form = reactive({
   studentId: '',
@@ -144,11 +159,14 @@ function exportCsv() {
             <td
               v-for="(pts, gIdx) in student.scores"
               :key="gIdx"
-              class="jrn-table__cell"
+              class="jrn-table__cell jrn-table__cell--click"
+              :class="{ 'jrn-table__cell--active': form.studentId === student.id && form.lessonId === lessons[gIdx]?.id }"
               :style="cellStyle(pts)"
+              :title="pts !== null ? 'Нажмите, чтобы исправить балл' : 'Нажмите, чтобы выставить балл'"
+              @click="editCell(student, gIdx)"
             >
               <span v-if="pts !== null" class="jrn-table__grade">+{{ pts }}</span>
-              <span v-else class="jrn-table__empty">—</span>
+              <span v-else class="jrn-table__empty">+</span>
             </td>
             <td class="jrn-table__points">
               {{ student.total.toLocaleString('ru') }}
@@ -163,10 +181,17 @@ function exportCsv() {
       </table>
     </div>
 
-    <!-- Форма начисления баллов -->
-    <div class="jrn-form-card">
-      <p class="jrn-form-card__label">НАЧИСЛЕНИЕ БАЛЛОВ</p>
-      <p class="jrn-form-card__hint">Ученик получает баллы за занятие — они копятся. Даже 1 балл — это хорошо.</p>
+    <!-- Форма начисления / исправления баллов -->
+    <div id="jrn-grade-form" class="jrn-form-card">
+      <p class="jrn-form-card__label">НАЧИСЛЕНИЕ И ИСПРАВЛЕНИЕ БАЛЛОВ</p>
+      <p class="jrn-form-card__hint">
+        Нажмите на ячейку в таблице, чтобы выставить или <strong>исправить</strong> балл за занятие.
+        Баллы копятся — даже 1 балл это хорошо.
+      </p>
+
+      <p v-if="editingStudent && editingLesson" class="jrn-form-card__editing">
+        Редактируется: <strong>{{ editingStudent }}</strong> · {{ editingLesson }}
+      </p>
 
       <div class="jrn-form">
         <div class="jrn-form__field">
@@ -191,7 +216,7 @@ function exportCsv() {
 
       <div class="jrn-form__btns">
         <button class="jrn-form__btn jrn-form__btn--submit" :disabled="saving" @click="submitGrade">
-          {{ saving ? 'Начисляем…' : 'Начислить' }}
+          {{ saving ? 'Сохраняем…' : 'Сохранить балл' }}
         </button>
         <button class="jrn-form__btn jrn-form__btn--reset"  @click="resetForm">Сбросить</button>
       </div>
@@ -348,6 +373,10 @@ function exportCsv() {
     border-right: 1px solid #EBEBEB;
     transition: background 0.2s;
     min-width: 100px;
+
+    &--click { cursor: pointer; }
+    &--click:hover { outline: 2px solid var(--c-purple); outline-offset: -2px; }
+    &--active { outline: 2px solid var(--c-purple-text); outline-offset: -2px; }
   }
 
   &__grade {
@@ -406,6 +435,14 @@ function exportCsv() {
     font-size: 13px;
     color: var(--c-text-gray);
     margin-top: -8px;
+  }
+
+  &__editing {
+    font-size: 13px;
+    color: var(--c-purple-text);
+    background: var(--c-purple-light);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
   }
 }
 

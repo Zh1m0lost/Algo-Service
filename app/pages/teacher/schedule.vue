@@ -28,6 +28,8 @@ const router = useRouter()
 function openLesson(lesson: any) {
   router.push(`/teacher/lesson/${lesson.id}`)
 }
+
+const activeTask = ref<any | null>(null)
 </script>
 
 <template>
@@ -89,7 +91,7 @@ function openLesson(lesson: any) {
         <div class="sch-col">
           <p class="sch-col__label sch-col__label--gray">К ВЫПОЛНЕНИЮ</p>
           <div class="sch-col__list">
-            <div v-for="task in data.tasks.todo" :key="task.id" class="sch-task">
+            <div v-for="task in data.tasks.todo" :key="task.id" class="sch-task sch-task--click" @click="activeTask = task">
               <p class="sch-task__title">{{ task.title }}</p>
               <div class="sch-task__footer">
                 <span class="sch-task__meta">{{ task.meta }}</span>
@@ -105,7 +107,7 @@ function openLesson(lesson: any) {
         <div class="sch-col">
           <p class="sch-col__label sch-col__label--blue">В ПРОЦЕССЕ</p>
           <div class="sch-col__list">
-            <div v-for="task in data.tasks.inProgress" :key="task.id" class="sch-task">
+            <div v-for="task in data.tasks.inProgress" :key="task.id" class="sch-task sch-task--click" @click="activeTask = task">
               <p class="sch-task__title">{{ task.title }}</p>
               <div class="sch-task__footer">
                 <span class="sch-task__meta">{{ task.meta }}</span>
@@ -121,7 +123,7 @@ function openLesson(lesson: any) {
         <div class="sch-col">
           <p class="sch-col__label sch-col__label--green">ГОТОВО</p>
           <div class="sch-col__list">
-            <div v-for="task in data.tasks.done" :key="task.id" class="sch-task">
+            <div v-for="task in data.tasks.done" :key="task.id" class="sch-task sch-task--click" @click="activeTask = task">
               <p class="sch-task__title">{{ task.title }}</p>
               <div class="sch-task__footer">
                 <span class="sch-task__meta">{{ task.meta }}</span>
@@ -135,6 +137,7 @@ function openLesson(lesson: any) {
       </div>
     </div>
 
+    <TaskDetailModal :task="activeTask" @close="activeTask = null" />
   </div>
 </template>
 
@@ -338,6 +341,9 @@ function openLesson(lesson: any) {
   display: flex;
   flex-direction: column;
   gap: 10px;
+
+  &--click { cursor: pointer; transition: box-shadow 0.15s, transform 0.1s; }
+  &--click:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-1px); }
 
   &__title {
     font-size: 14px;

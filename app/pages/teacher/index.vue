@@ -22,6 +22,8 @@ const tabs = [
 ] as const
 
 const currentTasks = computed(() => data.value?.tasks?.[activeTab.value] ?? [])
+
+const activeTask = ref<any | null>(null)
 </script>
 
 <template>
@@ -112,7 +114,12 @@ const currentTasks = computed(() => data.value?.tasks?.[activeTab.value] ?? [])
         </div>
 
         <div class="td-task-list">
-          <div v-for="task in currentTasks" :key="task.id" class="td-task">
+          <div
+            v-for="task in currentTasks"
+            :key="task.id"
+            class="td-task td-task--click"
+            @click="activeTask = task"
+          >
             <div>
               <p class="td-task__title">{{ task.title }}</p>
               <div class="td-task__meta">
@@ -120,6 +127,7 @@ const currentTasks = computed(() => data.value?.tasks?.[activeTab.value] ?? [])
                 <span class="td-task__info">{{ task.meta }}</span>
               </div>
             </div>
+            <span class="td-task__arrow">→</span>
           </div>
           <p v-if="currentTasks.length === 0" class="td-task__empty">Задач нет</p>
         </div>
@@ -127,6 +135,8 @@ const currentTasks = computed(() => data.value?.tasks?.[activeTab.value] ?? [])
       </div>
 
     </div>
+
+    <TaskDetailModal :task="activeTask" @close="activeTask = null" />
   </div>
 </template>
 
@@ -376,6 +386,31 @@ const currentTasks = computed(() => data.value?.tasks?.[activeTab.value] ?? [])
 }
 
 .td-task {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  &--click {
+    cursor: pointer;
+    padding: 8px 12px;
+    margin: 0 -12px;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s;
+    &:hover { background: var(--c-bg); }
+  }
+
+  &__arrow {
+    color: var(--c-purple-text);
+    font-size: 16px;
+    font-weight: 700;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  &--click:hover &__arrow { opacity: 1; }
+
   &__title {
     font-size: 15px;
     font-weight: 600;
