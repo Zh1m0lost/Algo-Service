@@ -68,7 +68,6 @@ async function handleLogin() {
         <input v-model="remember" type="checkbox" class="login-form__checkbox" />
         <span>Запомнить меня</span>
       </label>
-      <a href="#" class="login-form__forgot">Забыли пароль?</a>
     </div>
 
     <p v-if="error" class="login-form__error">{{ error }}</p>
@@ -138,14 +137,6 @@ async function handleLogin() {
     height: 18px;
     accent-color: var(--c-purple);
     cursor: pointer;
-  }
-
-  &__forgot {
-    font-size: 14px;
-    color: var(--c-purple-text);
-    font-weight: 500;
-
-    &:hover { opacity: 0.75; }
   }
 
   &__error {

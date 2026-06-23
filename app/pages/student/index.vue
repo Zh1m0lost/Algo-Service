@@ -104,7 +104,7 @@ const progressPercent = computed(() => {
         <p class="card__section-label">МОИ БАЛЛЫ</p>
         <div class="points-total">
           <span class="points-total__num">{{ data.points.total.toLocaleString('ru') }}</span>
-          <span class="points-total__star">⭐</span>
+          <UiIcon name="star" :size="28" class="points-total__star" />
         </div>
         <p class="points-subtitle">Накоплено за всё время</p>
 
@@ -513,7 +513,7 @@ const progressPercent = computed(() => {
     color: var(--c-purple-text);
   }
 
-  &__star { font-size: 24px; }
+  &__star { color: var(--c-yellow); }
 }
 
 .points-subtitle {

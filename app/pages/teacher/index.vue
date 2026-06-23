@@ -3,10 +3,10 @@ definePageMeta({ layout: 'teacher' })
 
 
 const quickActions = [
-  { icon: '📅', title: 'Расписание',       desc: 'Занятия на неделю и таск-трекер',  to: '/teacher/schedule'    },
-  { icon: '📄', title: 'Домашние задания',  desc: 'Создать и выдать задания',          to: '/teacher/homework'    },
-  { icon: '🔧', title: 'Конструктор задач', desc: 'Создавать и редактировать задачи', to: '/teacher/constructor' },
-  { icon: '📖', title: 'Журнал баллов',     desc: 'Оценки и баллы по группам',        to: '/teacher/journal'     },
+  { icon: 'calendar', title: 'Расписание',       desc: 'Занятия на неделю и таск-трекер',   to: '/teacher/schedule'    },
+  { icon: 'document', title: 'Домашние задания',  desc: 'Создать и выдать задания',           to: '/teacher/homework'    },
+  { icon: 'gear',     title: 'Конструктор задач', desc: 'Создавать и редактировать задачи',  to: '/teacher/constructor' },
+  { icon: 'book',     title: 'Журнал баллов',     desc: 'Баллы за занятия по группам',        to: '/teacher/journal'     },
 ]
 
 const { data } = await useAsyncData('teacher-dashboard', () =>
@@ -41,7 +41,7 @@ const currentTasks = computed(() => data.value?.tasks?.[activeTab.value] ?? [])
           Удачного рабочего дня!
         </p>
         <div class="td-hero__date">
-          <span class="td-hero__date-icon">📅</span>
+          <UiIcon name="calendar" :size="15" class="td-hero__date-icon" />
           {{ data.date }}
         </div>
       </div>
@@ -70,7 +70,7 @@ const currentTasks = computed(() => data.value?.tasks?.[activeTab.value] ?? [])
         :to="action.to"
         class="td-quick-card"
       >
-        <div class="td-quick-card__icon">{{ action.icon }}</div>
+        <div class="td-quick-card__icon"><UiIcon :name="action.icon" :size="28" /></div>
         <p class="td-quick-card__title">{{ action.title }}</p>
         <p class="td-quick-card__desc">{{ action.desc }}</p>
       </NuxtLink>
@@ -254,10 +254,10 @@ const currentTasks = computed(() => data.value?.tasks?.[activeTab.value] ?? [])
   }
 
   &__icon {
-    font-size: 32px;
     width: 56px;
     height: 56px;
     background: var(--c-purple-light);
+    color: var(--c-purple-text);
     border-radius: var(--radius-sm);
     display: flex;
     align-items: center;

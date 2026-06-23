@@ -13,7 +13,6 @@ const { data } = await useAsyncData(`teacher-review-${id}`, () =>
   api<any>(`/teacher/review/${id}`),
 )
 
-const grade      = ref<number | null>(null)
 const earnedPts  = ref<number>(0)
 const feedback   = ref('')
 const newComment = ref('')
@@ -38,15 +37,14 @@ function showToast(text: string, type = 'success') {
 }
 
 async function submitReview() {
-  if (grade.value === null) { showToast('Выберите оценку', 'error'); return }
   try {
     await api(`/teacher/review/${id}`, {
       method: 'POST',
-      body: { grade: grade.value, points: earnedPts.value, feedback: feedback.value },
+      body: { points: earnedPts.value, feedback: feedback.value },
     })
-    showToast('Оценка выставлена')
+    showToast('Баллы начислены')
   } catch {
-    showToast('Не удалось сохранить оценку', 'error')
+    showToast('Не удалось сохранить', 'error')
   }
 }
 
@@ -177,30 +175,20 @@ function goBack() { router.back() }
       <!-- Правая: выставление оценки -->
       <div class="rv-right">
         <div class="rv-card rv-grade-card">
-          <p class="rv-section-label">ВЫСТАВИТЬ ОЦЕНКУ</p>
-
-          <div class="rv-grade-row">
-            <button
-              v-for="n in [5, 4, 3, 2, 1]"
-              :key="n"
-              class="rv-grade-btn"
-              :class="{ 'rv-grade-btn--active': grade === n }"
-              @click="grade = n"
-            >{{ n }}</button>
-          </div>
+          <p class="rv-section-label">НАЧИСЛИТЬ БАЛЛЫ</p>
 
           <div class="rv-field">
-            <label class="rv-field__label">Баллы</label>
+            <label class="rv-field__label">Баллы за работу</label>
             <input v-model.number="earnedPts" type="number" min="0" :max="data.points" class="rv-input" />
-            <span class="rv-field__hint">из {{ data.points }}</span>
+            <span class="rv-field__hint">из {{ data.points }} возможных</span>
           </div>
 
           <div class="rv-field">
-            <label class="rv-field__label">Комментарий к оценке</label>
+            <label class="rv-field__label">Комментарий к работе</label>
             <textarea v-model="feedback" class="rv-textarea" placeholder="Напишите отзыв о работе..." rows="5" />
           </div>
 
-          <button class="rv-btn rv-btn--filled rv-btn--full" @click="submitReview">Выставить оценку</button>
+          <button class="rv-btn rv-btn--filled rv-btn--full" @click="submitReview">Начислить баллы</button>
         </div>
       </div>
 
@@ -494,33 +482,6 @@ function goBack() { router.back() }
   gap: 20px;
 }
 
-.rv-grade-row {
-  display: flex;
-  gap: 10px;
-}
-
-.rv-grade-btn {
-  flex: 1;
-  padding: 14px 0;
-  border-radius: var(--radius-sm);
-  border: 2px solid #E0E0E0;
-  background: var(--c-white);
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--c-text-dark);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
-  font-family: var(--font-main);
-
-  &:hover { border-color: var(--c-purple-text); }
-
-  &--active {
-    border-color: var(--c-purple-text);
-    background: var(--c-purple-light);
-    color: var(--c-purple-text);
-  }
-}
-
 /* Field */
 .rv-field {
   display: flex;
@@ -631,6 +592,5 @@ function goBack() { router.back() }
 @media (max-width: 600px) {
   .rv-header { flex-wrap: wrap; gap: 12px; }
   .rv-card { padding: 20px; }
-  .rv-grade-btn { padding: 10px 0; font-size: 17px; }
 }
 </style>

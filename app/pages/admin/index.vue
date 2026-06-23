@@ -148,7 +148,7 @@ const { data, refresh } = await useAsyncData('admin-dashboard', () =>
         class="adm-stat-card"
       >
         <div class="adm-stat-card__top">
-          <div class="adm-stat-card__icon">{{ card.icon }}</div>
+          <div class="adm-stat-card__icon"><UiIcon :name="card.icon" :size="24" /></div>
           <span class="adm-stat-card__arrow">→</span>
         </div>
         <p class="adm-stat-card__title">{{ card.title }}</p>
@@ -563,10 +563,10 @@ const { data, refresh } = await useAsyncData('admin-dashboard', () =>
   }
 
   &__icon {
-    font-size: 24px;
     width: 44px;
     height: 44px;
     background: var(--c-purple-light);
+    color: var(--c-purple-text);
     border-radius: var(--radius-sm);
     display: flex;
     align-items: center;

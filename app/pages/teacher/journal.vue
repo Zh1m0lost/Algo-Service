@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { avg } from '~/utils/grades'
 definePageMeta({ layout: 'teacher' })
 
 const api = useApi()
@@ -11,7 +10,6 @@ const { data, refresh } = await useAsyncData('teacher-journal',
 )
 
 const groups      = computed<string[]>(() => data.value?.groups ?? [])
-const subjects    = computed<string[]>(() => data.value?.subjects ?? [])
 const assignments = computed<string[]>(() => data.value?.assignments ?? [])
 const students    = computed<any[]>(() => data.value?.students ?? [])
 
@@ -22,35 +20,19 @@ watchEffect(() => {
   }
 })
 
-// Цвета ячеек по оценке
-const cellBg: Record<number, string> = {
-  5: '#D8F5D0',
-  4: '#D0E8FF',
-  3: '#EDE7FF',
-  2: '#FFE0E0'
+// Любые начисленные баллы — это хорошо (даже 1). Ячейку с баллами подсвечиваем «золотом».
+function cellStyle(points: number | null) {
+  return points !== null ? { background: 'var(--c-yellow-light)' } : {}
 }
 
-function gradeBg(g: number | null) {
-  return g ? cellBg[g] ?? '#fff' : '#fff'
-}
-
-function avgColor(a: number | null) {
-  if (a === null) return '#BBB'
-  if (a >= 4.5) return 'var(--c-green)'
-  if (a >= 4.0) return 'var(--c-text-dark)'
-  if (a >= 3.5) return 'var(--c-purple-text)'
-  return 'var(--c-red)'
-}
-
-// Форма выставления оценки
+// Форма начисления баллов
 const form = reactive({
   student:    '',
   assignment: '',
-  points:     85,
-  grade:      5
+  points:     10,
 })
 
-// При обновлении данных подставляем первого ученика и первое задание.
+// При обновлении данных подставляем первого ученика и первое занятие.
 watch(data, (d) => {
   if (!d) return
   form.student = d.students?.[0]?.name ?? ''
@@ -59,26 +41,31 @@ watch(data, (d) => {
   }
 }, { immediate: true })
 
+const saving = ref(false)
+
 async function submitGrade() {
   if (!form.student || !form.assignment) return
-  await api('/teacher/journal/grade', {
-    method: 'POST',
-    body: {
-      group:      selectedGroup.value,
-      student:    form.student,
-      assignment: form.assignment,
-      points:     form.points,
-      grade:      form.grade,
-    },
-  })
-  await refresh()
+  saving.value = true
+  try {
+    await api('/teacher/journal/grade', {
+      method: 'POST',
+      body: {
+        group:      selectedGroup.value,
+        student:    form.student,
+        assignment: form.assignment,
+        points:     form.points,
+      },
+    })
+    await refresh()
+  } finally {
+    saving.value = false
+  }
 }
 
 function resetForm() {
   form.student    = students.value[0]?.name ?? ''
   form.assignment = assignments.value[0] ?? ''
-  form.points     = 85
-  form.grade      = 5
+  form.points     = 10
 }
 
 // Дропдаун группы
@@ -90,12 +77,11 @@ function exportCsv() {
     return /[",;\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
   }
 
-  const header = ['Ученик', ...subjects.value, 'Итого баллов', 'Средний балл']
+  const header = ['Ученик', ...assignments.value, 'Итого баллов']
   const rows = students.value.map((s: any) => [
     s.name,
-    ...subjects.value.map((_, i) => s.grades[i] ?? ''),
-    s.points,
-    avg(s.grades) ?? '',
+    ...assignments.value.map((_, i) => s.scores[i] ?? ''),
+    s.total,
   ])
 
   // Разделитель «;» и BOM — чтобы Excel корректно открыл кириллицу.
@@ -140,46 +126,45 @@ function exportCsv() {
       </div>
     </div>
 
-    <!-- Таблица оценок -->
+    <!-- Таблица баллов -->
     <div class="jrn-table-wrap">
       <table class="jrn-table">
         <thead>
           <tr>
             <th class="jrn-table__th jrn-table__th--student">Ученик</th>
-            <th v-for="sub in subjects" :key="sub" class="jrn-table__th">{{ sub }}</th>
+            <th v-for="a in assignments" :key="a" class="jrn-table__th">{{ a }}</th>
             <th class="jrn-table__th">Итого баллов</th>
-            <th class="jrn-table__th">Средний балл</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(student, sIdx) in students" :key="sIdx" class="jrn-table__row">
             <td class="jrn-table__name">{{ student.name }}</td>
             <td
-              v-for="(grade, gIdx) in student.grades"
+              v-for="(pts, gIdx) in student.scores"
               :key="gIdx"
               class="jrn-table__cell"
-              :style="{ background: gradeBg(grade) }"
+              :style="cellStyle(pts)"
             >
-              <span v-if="grade !== null" class="jrn-table__grade">{{ grade }}</span>
+              <span v-if="pts !== null" class="jrn-table__grade">+{{ pts }}</span>
               <span v-else class="jrn-table__empty">—</span>
             </td>
             <td class="jrn-table__points">
-              {{ student.points.toLocaleString('ru') }}
+              {{ student.total.toLocaleString('ru') }}
             </td>
-            <td
-              class="jrn-table__avg"
-              :style="{ color: avgColor(avg(student.grades)) }"
-            >
-              {{ avg(student.grades) ?? '—' }}
+          </tr>
+          <tr v-if="!students.length">
+            <td :colspan="assignments.length + 2" class="jrn-table__empty-row">
+              В этой группе пока нет занятий или учеников
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- Форма выставления оценки -->
+    <!-- Форма начисления баллов -->
     <div class="jrn-form-card">
-      <p class="jrn-form-card__label">ВЫСТАВЛЕНИЕ ОЦЕНКИ</p>
+      <p class="jrn-form-card__label">НАЧИСЛЕНИЕ БАЛЛОВ</p>
+      <p class="jrn-form-card__hint">Ученик получает баллы за занятие — они копятся. Даже 1 балл — это хорошо.</p>
 
       <div class="jrn-form">
         <div class="jrn-form__field">
@@ -190,7 +175,7 @@ function exportCsv() {
         </div>
 
         <div class="jrn-form__field jrn-form__field--wide">
-          <label class="jrn-form__field-label">Задание</label>
+          <label class="jrn-form__field-label">Занятие</label>
           <select v-model="form.assignment" class="jrn-form__select">
             <option v-for="a in assignments" :key="a" :value="a">{{ a }}</option>
           </select>
@@ -198,19 +183,14 @@ function exportCsv() {
 
         <div class="jrn-form__field jrn-form__field--sm">
           <label class="jrn-form__field-label">Баллы</label>
-          <input v-model.number="form.points" type="number" min="0" max="100" class="jrn-form__input" />
-        </div>
-
-        <div class="jrn-form__field jrn-form__field--sm">
-          <label class="jrn-form__field-label">Оценка</label>
-          <select v-model.number="form.grade" class="jrn-form__select">
-            <option v-for="n in [5,4,3,2]" :key="n" :value="n">{{ n }}</option>
-          </select>
+          <input v-model.number="form.points" type="number" min="1" max="1000" class="jrn-form__input" />
         </div>
       </div>
 
       <div class="jrn-form__btns">
-        <button class="jrn-form__btn jrn-form__btn--submit" @click="submitGrade">Выставить</button>
+        <button class="jrn-form__btn jrn-form__btn--submit" :disabled="saving" @click="submitGrade">
+          {{ saving ? 'Начисляем…' : 'Начислить' }}
+        </button>
         <button class="jrn-form__btn jrn-form__btn--reset"  @click="resetForm">Сбросить</button>
       </div>
     </div>
@@ -366,14 +346,21 @@ function exportCsv() {
   }
 
   &__grade {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
-    color: var(--c-text-dark);
+    color: var(--c-green-text);
   }
 
   &__empty {
     font-size: 18px;
     color: #CCC;
+  }
+
+  &__empty-row {
+    padding: 28px 16px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--c-text-gray);
   }
 
   &__points {
@@ -408,6 +395,12 @@ function exportCsv() {
     font-weight: 700;
     letter-spacing: 0.08em;
     color: var(--c-purple-text);
+  }
+
+  &__hint {
+    font-size: 13px;
+    color: var(--c-text-gray);
+    margin-top: -8px;
   }
 }
 
