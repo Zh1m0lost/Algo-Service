@@ -160,7 +160,7 @@ function goBack() { router.back() }
             </div>
 
             <div class="rv-chat__input-row">
-              <div class="rv-msg__avatar rv-msg__avatar--teacher">ЕП</div>
+              <div class="rv-msg__avatar rv-msg__avatar--teacher">{{ teacherInitials() }}</div>
               <div class="rv-chat__input-wrap">
                 <textarea v-model="newComment" class="rv-textarea" placeholder="Написать комментарий..." rows="3" />
                 <div class="rv-chat__btns">

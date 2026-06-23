@@ -315,7 +315,9 @@ function exportCsv() {
 .jrn-table-wrap {
   background: var(--c-white);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid #EBEBEB;
 }
 

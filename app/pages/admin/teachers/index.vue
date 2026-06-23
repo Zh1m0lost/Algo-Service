@@ -6,6 +6,7 @@ type Teacher = { id:number; initials:string; color:string; name:string; subject:
 const avatarColors = ['#F5A623','#7B5EA7','#E8823A','#D4A017','#6B8FA8','#3A9A8A','#8A8A9A','#A07BC0','#5B7EA6']
 
 const api = useApi()
+const router = useRouter()
 const { data, refresh } = await useAsyncData('admin-teachers', () =>
   api<any[]>('/admin/teachers'),
 )
@@ -114,7 +115,7 @@ async function submitAdd() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="t in filtered" :key="t.id" class="al-table__row">
+          <tr v-for="t in filtered" :key="t.id" class="al-table__row al-table__row--link" @click="router.push(`/admin/teachers/${t.id}`)">
             <td>
               <div class="al-person">
                 <div class="al-avatar" :style="{ background: t.color }">{{ t.initials }}</div>

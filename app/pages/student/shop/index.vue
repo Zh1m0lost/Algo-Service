@@ -27,23 +27,31 @@ const badgeMap: Record<string, { label: string; cls: string }> = {
 
 const selectedProduct = ref<any | null>(null)
 const purchaseDone    = ref(false)
+const purchaseError   = ref('')
 
 function openBuy(product: any) {
-  if (product.price > balance.total) return
+  if (product.price > balance.total || product.stock === 0) return
   selectedProduct.value = product
   purchaseDone.value = false
+  purchaseError.value = ''
 }
 
 async function confirmPurchase() {
   if (!selectedProduct.value) return
-  const res = await api<any>('/student/shop/buy', {
-    method: 'POST',
-    body: { productId: selectedProduct.value.id },
-  })
-  balance.total = res.balance
-  transactions.value.unshift(res.transaction)
-  purchaseDone.value = true
-  setTimeout(() => { selectedProduct.value = null }, 1200)
+  purchaseError.value = ''
+  try {
+    const res = await api<any>('/student/shop/buy', {
+      method: 'POST',
+      body: { productId: selectedProduct.value.id },
+    })
+    balance.total = res.balance
+    transactions.value.unshift(res.transaction)
+    purchaseDone.value = true
+    setTimeout(() => { selectedProduct.value = null }, 1200)
+  } catch (e: any) {
+    purchaseError.value =
+      e?.data?.errors?.productId?.[0] || e?.data?.message || 'Не удалось оформить покупку'
+  }
 }
 
 function remainder(price: number) {
@@ -150,8 +158,11 @@ function shortage(price: number) {
           <div class="shop-product__footer">
             <span class="shop-product__price">⭐ {{ product.price }}</span>
             <div class="shop-product__buy-wrap">
+              <button v-if="product.stock === 0" class="shop-product__btn shop-product__btn--disabled" disabled>
+                Нет в наличии
+              </button>
               <button
-                v-if="product.price <= balance.total"
+                v-else-if="product.price <= balance.total"
                 class="shop-product__btn"
                 @click="openBuy(product)"
               >
@@ -191,6 +202,8 @@ function shortage(price: number) {
                 <span class="shop-modal__val shop-modal__val--green">{{ remainder(selectedProduct.price).toLocaleString('ru') }}</span>
               </div>
             </div>
+
+            <p v-if="purchaseError" class="shop-modal__error">{{ purchaseError }}</p>
 
             <div class="shop-modal__footer">
               <button class="shop-modal__btn shop-modal__btn--outline" @click="selectedProduct = null">Отмена</button>
@@ -575,6 +588,13 @@ function shortage(price: number) {
 
     &--red   { color: var(--c-red);   }
     &--green { color: var(--c-green); }
+  }
+
+  &__error {
+    font-size: 13px;
+    color: var(--c-red);
+    text-align: center;
+    margin-bottom: 12px;
   }
 
   &__footer {

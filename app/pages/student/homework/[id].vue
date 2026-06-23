@@ -18,6 +18,11 @@ type Homework = {
 const api = useApi()
 const id  = route.params.id as string
 
+const { user } = useAuth()
+const myInitials = computed(() =>
+  (user.value?.name ?? '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join(''),
+)
+
 const { data, refresh } = await useAsyncData(`student-homework-${id}`, () =>
   api<any>(`/student/homework/${id}`),
 )
@@ -247,7 +252,7 @@ async function deleteComment(commentId: string) {
 
         <!-- Поле ввода -->
         <div class="hw-chat__input-row">
-          <div class="hw-msg__avatar hw-msg__avatar--student">ИИ</div>
+          <div class="hw-msg__avatar hw-msg__avatar--student">{{ myInitials }}</div>
           <div class="hw-chat__input-wrap">
             <textarea
               v-model="newComment"

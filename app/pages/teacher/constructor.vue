@@ -5,13 +5,17 @@ definePageMeta({ layout: 'teacher' })
 
 const MAX_POINTS = 40
 
-type TaskType = 'single' | 'multiple' | 'input' | 'match'
+type TaskType = 'single' | 'multiple' | 'input' | 'match' | 'file'
 const types: { key: TaskType; label: string }[] = [
   { key: 'single',   label: 'Одиночный выбор' },
   { key: 'multiple', label: 'Множественный выбор' },
   { key: 'input',    label: 'Ввод ответа' },
   { key: 'match',    label: 'Сопоставление' },
+  { key: 'file',     label: 'Прикрепить файл' },
 ]
+
+// Инструкции для задания с ответом-файлом.
+const instructions = ref('')
 
 const type     = ref<TaskType>('single')
 const taskName = ref('')
@@ -121,6 +125,7 @@ const canSave = computed(() => {
     case 'multiple': return completeOptions.value.length >= 2 && completeOptions.value.some(o => o.correct)
     case 'input':    return completeAnswers.value.length >= 1
     case 'match':    return completePairs.value.length >= 2
+    case 'file':     return true
   }
 })
 
@@ -141,6 +146,7 @@ function clearAll() {
   correctId.value = null
   answers.value = [blankAnswer()]
   pairs.value = [blankPair(), blankPair(), blankPair()]
+  instructions.value = ''
   resetPreview()
 }
 
@@ -157,6 +163,9 @@ function buildBody(): Record<string, any> {
   }
   if (type.value === 'input') {
     return { ...base, answers: completeAnswers.value.map(a => a.value.trim()) }
+  }
+  if (type.value === 'file') {
+    return { ...base, instructions: instructions.value.trim() }
   }
   return {
     ...base,
@@ -243,7 +252,7 @@ async function saveTask() {
       </div>
 
       <!-- Match -->
-      <div v-else class="con-block">
+      <div v-else-if="type === 'match'" class="con-block">
         <p class="con-hint">Каждая строка — правильная пара: слева элемент, справа верное соответствие. Нужно минимум 2 пары.</p>
         <div class="con-pairs__head">
           <span>Элемент</span>
@@ -257,6 +266,20 @@ async function saveTask() {
           <button class="con-icon-btn" title="Удалить пару" @click="removePair(pair.id)">🗑️</button>
         </div>
         <button class="con-add-btn" @click="addPair">+ Добавить пару</button>
+      </div>
+
+      <!-- File -->
+      <div v-else class="con-block">
+        <p class="con-hint">Ученик прикрепляет файл с решением; задание проверяется преподавателем вручную.</p>
+        <label class="con-field con-field--grow">
+          <span class="con-field__label">Инструкция (необязательно)</span>
+          <textarea
+            v-model="instructions"
+            class="con-field__input con-textarea"
+            rows="4"
+            placeholder="Что и в каком формате прикрепить, требования к работе"
+          />
+        </label>
       </div>
     </div>
 
@@ -290,7 +313,7 @@ async function saveTask() {
         </div>
 
         <!-- match -->
-        <template v-else>
+        <template v-else-if="type === 'match'">
           <div class="con-preview__cols">
             <div class="con-preview__col">
               <p class="con-preview__col-head">Элементы</p>
@@ -343,6 +366,15 @@ async function saveTask() {
             <button class="con-reset-btn" @click="resetPreview">Сбросить</button>
           </div>
         </template>
+
+        <!-- file -->
+        <div v-else class="con-preview__list">
+          <div class="con-prev-opt">
+            <span class="con-prev-opt__mark">📎</span>
+            <span>Поле загрузки файла (ответ ученика)</span>
+          </div>
+          <p v-if="instructions" class="con-preview__file-note">{{ instructions }}</p>
+        </div>
       </div>
     </div>
 
@@ -800,6 +832,21 @@ async function saveTask() {
 
   &:hover { opacity: 0.88; }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.con-textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.5;
+}
+
+.con-preview__file-note {
+  font-size: 13px;
+  color: var(--c-text-gray);
+  background: var(--c-bg);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  white-space: pre-wrap;
 }
 
 /* ── Toast ── */
