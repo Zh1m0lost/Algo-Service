@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { avg } from '~/utils/grades'
 definePageMeta({ layout: 'teacher' })
 
 const api = useApi()
@@ -20,26 +21,6 @@ watchEffect(() => {
   }
 })
 
-// Любые начисленные баллы — это хорошо (даже 1). Ячейку с баллами подсвечиваем «золотом».
-function cellStyle(points: number | null) {
-  return points !== null ? { background: 'var(--c-yellow-light)' } : {}
-}
-
-// Клик по ячейке — исправить/выставить балл: подставляем ученика, занятие и текущее значение в форму.
-function editCell(student: any, idx: number) {
-  form.studentId = student.id
-  form.lessonId  = lessons.value[idx]?.id ?? ''
-  form.points    = student.scores[idx] ?? 0
-  // Прокрутка к форме, чтобы исправление было очевидным.
-  if (import.meta.client) {
-    requestAnimationFrame(() => document.getElementById('jrn-grade-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
-  }
-}
-
-// Подсказка: какой ученик/занятие сейчас редактируется.
-const editingStudent = computed(() => students.value.find((s: any) => s.id === form.studentId)?.name ?? '')
-const editingLesson  = computed(() => lessons.value.find((l: any) => l.id === form.lessonId)?.title ?? '')
-
 // Форма начисления баллов
 const form = reactive({
   studentId: '',
@@ -47,9 +28,45 @@ const form = reactive({
   points:    10,
 })
 
+// Выбранные ячейки для массового начисления (Ctrl/Cmd-клик).
+const selection = ref<{ studentId: string; lessonId: string }[]>([])
+function isSelected(studentId: string, lessonId: string) {
+  return selection.value.some(c => c.studentId === studentId && c.lessonId === lessonId)
+}
+
+function scrollToForm() {
+  if (import.meta.client) {
+    requestAnimationFrame(() => document.getElementById('jrn-grade-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+  }
+}
+
+// Клик по ячейке: обычный — выбрать одну и подставить в форму; Ctrl/Cmd — добавить/убрать из массового выбора.
+function editCell(student: any, idx: number, e: MouseEvent) {
+  const lessonId = lessons.value[idx]?.id ?? ''
+  if (!lessonId) return
+  const cell = { studentId: student.id, lessonId }
+
+  if (e.ctrlKey || e.metaKey) {
+    const at = selection.value.findIndex(c => c.studentId === cell.studentId && c.lessonId === cell.lessonId)
+    if (at >= 0) selection.value.splice(at, 1)
+    else selection.value.push(cell)
+  } else {
+    selection.value = [cell]
+    form.points = student.scores[idx] ?? 0
+    scrollToForm()
+  }
+  form.studentId = cell.studentId
+  form.lessonId  = cell.lessonId
+}
+
+// Подсказка: какой ученик/занятие сейчас редактируется.
+const editingStudent = computed(() => students.value.find((s: any) => s.id === form.studentId)?.name ?? '')
+const editingLesson  = computed(() => lessons.value.find((l: any) => l.id === form.lessonId)?.title ?? '')
+
 // При обновлении данных подставляем первого ученика и первое занятие.
 watch(data, (d) => {
   if (!d) return
+  selection.value = []
   form.studentId = d.students?.[0]?.id ?? ''
   const ids = (d.lessons ?? []).map((l: any) => l.id)
   if (!ids.includes(form.lessonId)) form.lessonId = ids[0] ?? ''
@@ -57,26 +74,49 @@ watch(data, (d) => {
 
 const saving = ref(false)
 
+// Тост
+const toast = reactive({ show: false, text: '', ok: true })
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+function showToast(text: string, ok = true) {
+  if (toastTimer) clearTimeout(toastTimer)
+  toast.text = text; toast.ok = ok; toast.show = true
+  toastTimer = setTimeout(() => { toast.show = false }, 2500)
+}
+
 async function submitGrade() {
-  if (!form.student || !form.assignment) return
+  const cells = selection.value.length
+    ? [...selection.value]
+    : (form.studentId && form.lessonId ? [{ studentId: form.studentId, lessonId: form.lessonId }] : [])
+
+  if (!cells.length) { showToast('Выберите ячейку в таблице', false); return }
+  if (typeof form.points !== 'number' || Number.isNaN(form.points)) { showToast('Введите баллы', false); return }
+
   saving.value = true
   try {
-    await api('/teacher/journal/grade', {
-      method: 'POST',
-      body: {
-        group:     selectedGroup.value,
-        studentId: form.studentId,
-        lessonId:  form.lessonId,
-        points:    form.points,
-      },
-    })
+    if (cells.length > 1) {
+      await api('/teacher/journal/bulk', {
+        method: 'POST',
+        body: { group: selectedGroup.value, points: form.points, items: cells },
+      })
+      showToast(`Баллы выставлены: ${cells.length} ячеек`)
+    } else {
+      await api('/teacher/journal/grade', {
+        method: 'POST',
+        body: { group: selectedGroup.value, studentId: cells[0].studentId, lessonId: cells[0].lessonId, points: form.points },
+      })
+      showToast('Балл сохранён')
+    }
+    selection.value = []
     await refresh()
+  } catch (e: any) {
+    showToast(e?.data?.message || 'Не удалось сохранить балл', false)
   } finally {
     saving.value = false
   }
 }
 
 function resetForm() {
+  selection.value = []
   form.studentId = students.value[0]?.id ?? ''
   form.lessonId  = lessons.value[0]?.id ?? ''
   form.points    = 10
@@ -91,11 +131,12 @@ function exportCsv() {
     return /[",;\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
   }
 
-  const header = ['Ученик', ...lessons.value.map((l: any) => l.title), 'Итого баллов']
+  const header = ['Ученик', ...lessons.value.map((l: any) => l.title), 'Итого баллов', 'Средний балл']
   const rows = students.value.map((s: any) => [
     s.name,
     ...lessons.value.map((_: any, i: number) => s.scores[i] ?? ''),
     s.total,
+    avg(s.scores) ?? '',
   ])
 
   // Разделитель «;» и BOM — чтобы Excel корректно открыл кириллицу.
@@ -146,11 +187,9 @@ function exportCsv() {
         <thead>
           <tr>
             <th class="jrn-table__th jrn-table__th--student">Ученик</th>
-            <th v-for="l in lessons" :key="l.id" class="jrn-table__th">
-              <span class="jrn-table__th-title">{{ l.title }}</span>
-              <span v-if="l.date" class="jrn-table__th-date">{{ l.date }}</span>
-            </th>
+            <th v-for="l in lessons" :key="l.id" class="jrn-table__th">{{ l.title }}</th>
             <th class="jrn-table__th">Итого баллов</th>
+            <th class="jrn-table__th">Средний балл</th>
           </tr>
         </thead>
         <tbody>
@@ -160,20 +199,20 @@ function exportCsv() {
               v-for="(pts, gIdx) in student.scores"
               :key="gIdx"
               class="jrn-table__cell jrn-table__cell--click"
-              :class="{ 'jrn-table__cell--active': form.studentId === student.id && form.lessonId === lessons[gIdx]?.id }"
-              :style="cellStyle(pts)"
-              :title="pts !== null ? 'Нажмите, чтобы исправить балл' : 'Нажмите, чтобы выставить балл'"
-              @click="editCell(student, gIdx)"
+              :class="{ 'jrn-table__cell--active': isSelected(student.id, lessons[gIdx]?.id) }"
+              :title="'Клик — выставить/исправить балл; Ctrl+клик — выбрать несколько'"
+              @click="editCell(student, gIdx, $event)"
             >
-              <span v-if="pts !== null" class="jrn-table__grade">+{{ pts }}</span>
-              <span v-else class="jrn-table__empty">+</span>
+              <span v-if="pts !== null" class="jrn-table__grade">{{ pts }}</span>
+              <span v-else class="jrn-table__empty">—</span>
             </td>
             <td class="jrn-table__points">
               {{ student.total.toLocaleString('ru') }}
             </td>
+            <td class="jrn-table__avg">{{ avg(student.scores) ?? '—' }}</td>
           </tr>
           <tr v-if="!students.length">
-            <td :colspan="lessons.length + 2" class="jrn-table__empty-row">
+            <td :colspan="lessons.length + 3" class="jrn-table__empty-row">
               В этой группе пока нет занятий или учеников
             </td>
           </tr>
@@ -185,11 +224,14 @@ function exportCsv() {
     <div id="jrn-grade-form" class="jrn-form-card">
       <p class="jrn-form-card__label">НАЧИСЛЕНИЕ И ИСПРАВЛЕНИЕ БАЛЛОВ</p>
       <p class="jrn-form-card__hint">
-        Нажмите на ячейку в таблице, чтобы выставить или <strong>исправить</strong> балл за занятие.
-        Баллы копятся — даже 1 балл это хорошо.
+        Клик по ячейке — выставить или <strong>исправить</strong> балл. <strong>Ctrl+клик</strong> (⌘ на Mac) —
+        выбрать несколько ячеек и начислить им один балл сразу. Баллы копятся — даже 1 балл это хорошо.
       </p>
 
-      <p v-if="editingStudent && editingLesson" class="jrn-form-card__editing">
+      <p v-if="selection.length > 1" class="jrn-form-card__editing">
+        Выбрано ячеек: <strong>{{ selection.length }}</strong> — балл применится ко всем
+      </p>
+      <p v-else-if="editingStudent && editingLesson" class="jrn-form-card__editing">
         Редактируется: <strong>{{ editingStudent }}</strong> · {{ editingLesson }}
       </p>
 
@@ -216,11 +258,15 @@ function exportCsv() {
 
       <div class="jrn-form__btns">
         <button class="jrn-form__btn jrn-form__btn--submit" :disabled="saving" @click="submitGrade">
-          {{ saving ? 'Сохраняем…' : 'Сохранить балл' }}
+          {{ saving ? 'Сохраняем…' : (selection.length > 1 ? `Сохранить (${selection.length})` : 'Сохранить балл') }}
         </button>
         <button class="jrn-form__btn jrn-form__btn--reset"  @click="resetForm">Сбросить</button>
       </div>
     </div>
+
+    <Transition name="toast">
+      <div v-if="toast.show" class="jrn-toast" :class="{ 'jrn-toast--error': !toast.ok }">{{ toast.text }}</div>
+    </Transition>
 
   </div>
 </template>
@@ -350,9 +396,6 @@ function exportCsv() {
     &:last-child { border-right: none; }
   }
 
-  &__th-title { display: block; font-weight: 600; }
-  &__th-date { display: block; font-size: 11px; color: var(--c-text-gray); font-weight: 400; margin-top: 2px; }
-
   &__row {
     border-bottom: 1px solid #F0F0F0;
     &:last-child { border-bottom: none; }
@@ -375,14 +418,14 @@ function exportCsv() {
     min-width: 100px;
 
     &--click { cursor: pointer; }
-    &--click:hover { outline: 2px solid var(--c-purple); outline-offset: -2px; }
-    &--active { outline: 2px solid var(--c-purple-text); outline-offset: -2px; }
+    &--click:hover { background: var(--c-bg); }
+    &--active { outline: 2px solid var(--c-purple-text); outline-offset: -2px; background: var(--c-purple-light); }
   }
 
   &__grade {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 700;
-    color: var(--c-green-text);
+    color: var(--c-text-dark);
   }
 
   &__empty {
@@ -563,4 +606,15 @@ function exportCsv() {
     &__field, &__field--wide, &__field--sm { flex: none; width: 100%; }
   }
 }
+
+.jrn-toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  background: var(--c-green); color: #fff; font-size: 14px; font-weight: 600;
+  padding: 12px 28px; border-radius: var(--radius-full); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 999; white-space: nowrap;
+  &--error { background: var(--c-red); }
+}
+
+.toast-enter-active, .toast-leave-active { transition: opacity 0.25s, transform 0.25s; }
+.toast-enter-from, .toast-leave-to       { opacity: 0; transform: translateX(-50%) translateY(12px); }
 </style>

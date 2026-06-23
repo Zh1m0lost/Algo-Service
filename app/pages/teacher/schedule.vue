@@ -2,8 +2,9 @@
 definePageMeta({ layout: 'teacher' })
 
 
-const { data } = await useAsyncData('teacher-schedule', () =>
-  useApi()<any>('/teacher/schedule'),
+const api = useApi()
+const { data, refresh } = await useAsyncData('teacher-schedule', () =>
+  api<any>('/teacher/schedule'),
 )
 
 const priorityMap: Record<string, { label: string; cls: string }> = {
@@ -30,6 +31,22 @@ function openLesson(lesson: any) {
 }
 
 const activeTask = ref<any | null>(null)
+async function onTaskSaved() {
+  activeTask.value = null
+  await refresh()
+}
+
+// Перенос задач между статусами (drag-and-drop).
+const draggedTask = ref<any | null>(null)
+async function dropTo(status: string) {
+  const t = draggedTask.value
+  draggedTask.value = null
+  if (!t || t.status === status) return
+  try {
+    await api(`/teacher/org-tasks/${t.id}`, { method: 'PUT', body: { status } })
+    await refresh()
+  } catch { /* no-op */ }
+}
 </script>
 
 <template>
@@ -85,13 +102,14 @@ const activeTask = ref<any | null>(null)
     <!-- Задачи на неделю -->
     <div class="sch-tasks">
       <h2 class="sch-tasks__title">Мои задачи на неделю</h2>
+      <p class="sch-tasks__hint">Перетащите задачу между колонками, чтобы изменить статус. Клик — открыть и отредактировать.</p>
 
       <div class="sch-kanban">
         <!-- К выполнению -->
-        <div class="sch-col">
+        <div class="sch-col" @dragover.prevent @drop="dropTo('todo')">
           <p class="sch-col__label sch-col__label--gray">К ВЫПОЛНЕНИЮ</p>
           <div class="sch-col__list">
-            <div v-for="task in data.tasks.todo" :key="task.id" class="sch-task sch-task--click" @click="activeTask = task">
+            <div v-for="task in data.tasks.todo" :key="task.id" class="sch-task sch-task--click" draggable="true" @dragstart="draggedTask = task" @click="activeTask = task">
               <p class="sch-task__title">{{ task.title }}</p>
               <div class="sch-task__footer">
                 <span class="sch-task__meta">{{ task.meta }}</span>
@@ -104,10 +122,10 @@ const activeTask = ref<any | null>(null)
         </div>
 
         <!-- В процессе -->
-        <div class="sch-col">
+        <div class="sch-col" @dragover.prevent @drop="dropTo('in_progress')">
           <p class="sch-col__label sch-col__label--blue">В ПРОЦЕССЕ</p>
           <div class="sch-col__list">
-            <div v-for="task in data.tasks.inProgress" :key="task.id" class="sch-task sch-task--click" @click="activeTask = task">
+            <div v-for="task in data.tasks.inProgress" :key="task.id" class="sch-task sch-task--click" draggable="true" @dragstart="draggedTask = task" @click="activeTask = task">
               <p class="sch-task__title">{{ task.title }}</p>
               <div class="sch-task__footer">
                 <span class="sch-task__meta">{{ task.meta }}</span>
@@ -120,10 +138,10 @@ const activeTask = ref<any | null>(null)
         </div>
 
         <!-- Готово -->
-        <div class="sch-col">
+        <div class="sch-col" @dragover.prevent @drop="dropTo('done')">
           <p class="sch-col__label sch-col__label--green">ГОТОВО</p>
           <div class="sch-col__list">
-            <div v-for="task in data.tasks.done" :key="task.id" class="sch-task sch-task--click" @click="activeTask = task">
+            <div v-for="task in data.tasks.done" :key="task.id" class="sch-task sch-task--click" draggable="true" @dragstart="draggedTask = task" @click="activeTask = task">
               <p class="sch-task__title">{{ task.title }}</p>
               <div class="sch-task__footer">
                 <span class="sch-task__meta">{{ task.meta }}</span>
@@ -137,7 +155,7 @@ const activeTask = ref<any | null>(null)
       </div>
     </div>
 
-    <TaskDetailModal :task="activeTask" @close="activeTask = null" />
+    <TaskDetailModal :task="activeTask" @close="activeTask = null" @saved="onTaskSaved" />
   </div>
 </template>
 
@@ -303,6 +321,15 @@ const activeTask = ref<any | null>(null)
   font-weight: 700;
   color: var(--c-text-dark);
 }
+
+.sch-tasks__hint {
+  font-size: 13px;
+  color: var(--c-text-gray);
+  margin-top: -12px;
+}
+
+.sch-task--click { cursor: grab; }
+.sch-task--click:active { cursor: grabbing; }
 
 .sch-kanban {
   display: grid;

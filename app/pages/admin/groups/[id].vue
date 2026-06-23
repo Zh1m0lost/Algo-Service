@@ -238,42 +238,47 @@ onMounted(loadLessons)
         </div>
       </div>
 
-      <!-- Редактор урока -->
-      <div v-if="lessonEditor.open" class="agl__editor">
-        <div class="agl__head">
-          <p class="dt-card__label">{{ lessonEditor.mode === 'new' ? 'НОВЫЙ УРОК' : 'РЕДАКТИРОВАНИЕ УРОКА' }}</p>
-          <button class="agl__close" aria-label="Закрыть" @click="closeLessonEditor">✕</button>
-        </div>
-        <div class="dt-form">
-          <label class="dt-field dt-field--full">
-            <span class="dt-field__label">Название урока</span>
-            <input v-model="lessonEditor.title" class="dt-field__input" placeholder="JavaScript — Промисы" />
-          </label>
-          <label class="dt-field">
-            <span class="dt-field__label">Дата и время</span>
-            <input v-model="lessonEditor.date" type="datetime-local" class="dt-field__input" />
-          </label>
-          <label class="dt-field">
-            <span class="dt-field__label">Ссылка на Zoom</span>
-            <input v-model="lessonEditor.zoom" class="dt-field__input" placeholder="https://zoom.us/j/…" />
-          </label>
-        </div>
+    </div>
 
-        <p class="dt-card__label agl__sublabel">ЦЕЛИ УРОКА</p>
-        <div v-for="(g, i) in lessonEditor.goals" :key="i" class="agl__goal">
-          <input v-model="lessonEditor.goals[i]" class="dt-field__input" :placeholder="`Цель ${i + 1}`" />
-          <button class="agl__act agl__act--del" title="Удалить цель" @click="removeGoal(i)"><UiIcon name="trash" :size="16" /></button>
-        </div>
-        <button class="agl__add" @click="addGoal">+ Добавить цель</button>
+    <!-- Редактор урока — модалка (чтобы был виден при длинном списке) -->
+    <Teleport to="body">
+      <div v-if="lessonEditor.open" class="agl-modal-overlay" @click.self="closeLessonEditor">
+        <div class="agl-modal">
+          <div class="agl__head">
+            <p class="dt-card__label">{{ lessonEditor.mode === 'new' ? 'НОВЫЙ УРОК' : 'РЕДАКТИРОВАНИЕ УРОКА' }}</p>
+            <button class="agl__close" aria-label="Закрыть" @click="closeLessonEditor">✕</button>
+          </div>
+          <div class="dt-form">
+            <label class="dt-field dt-field--full">
+              <span class="dt-field__label">Название урока</span>
+              <input v-model="lessonEditor.title" class="dt-field__input" placeholder="JavaScript — Промисы" />
+            </label>
+            <label class="dt-field">
+              <span class="dt-field__label">Дата и время</span>
+              <input v-model="lessonEditor.date" type="datetime-local" class="dt-field__input" />
+            </label>
+            <label class="dt-field">
+              <span class="dt-field__label">Ссылка на Zoom</span>
+              <input v-model="lessonEditor.zoom" class="dt-field__input" placeholder="https://zoom.us/j/…" />
+            </label>
+          </div>
 
-        <div class="dt-actions agl__editor-actions">
-          <button class="dt-btn dt-btn--save" :disabled="savingLesson" @click="saveLesson">
-            {{ savingLesson ? 'Сохранение…' : (lessonEditor.mode === 'new' ? 'Создать урок' : 'Сохранить урок') }}
-          </button>
-          <button class="dt-btn dt-btn--del" @click="closeLessonEditor">Отмена</button>
+          <p class="dt-card__label agl__sublabel">ЦЕЛИ УРОКА</p>
+          <div v-for="(g, i) in lessonEditor.goals" :key="i" class="agl__goal">
+            <input v-model="lessonEditor.goals[i]" class="dt-field__input" :placeholder="`Цель ${i + 1}`" />
+            <button class="agl__act agl__act--del" title="Удалить цель" @click="removeGoal(i)"><UiIcon name="trash" :size="16" /></button>
+          </div>
+          <button class="agl__add" @click="addGoal">+ Добавить цель</button>
+
+          <div class="dt-actions agl__editor-actions">
+            <button class="dt-btn dt-btn--save" :disabled="savingLesson" @click="saveLesson">
+              {{ savingLesson ? 'Сохранение…' : (lessonEditor.mode === 'new' ? 'Создать урок' : 'Сохранить урок') }}
+            </button>
+            <button class="dt-btn dt-btn--del" @click="closeLessonEditor">Отмена</button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <Transition name="toast">
       <div v-if="toast.show" class="al-toast" :class="{ 'al-toast--error': !toast.ok }">{{ toast.text }}</div>
@@ -336,13 +341,17 @@ onMounted(loadLessons)
   &--del { color: var(--c-red); &:hover { background: var(--c-red-light); } }
 }
 
-.agl__editor {
-  border-top: 1px solid #ECECEC;
-  padding-top: 16px;
-  margin-top: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.agl-modal-overlay {
+  position: fixed; inset: 0; z-index: 1100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+
+.agl-modal {
+  background: var(--c-white); border-radius: var(--radius-lg);
+  padding: 28px 32px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
 }
 
 .agl__close {

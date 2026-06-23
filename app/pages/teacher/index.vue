@@ -9,7 +9,7 @@ const quickActions = [
   { icon: 'book',     title: 'Журнал баллов',     desc: 'Баллы за занятия по группам',        to: '/teacher/journal'     },
 ]
 
-const { data } = await useAsyncData('teacher-dashboard', () =>
+const { data, refresh } = await useAsyncData('teacher-dashboard', () =>
   useApi()<any>('/teacher/dashboard'),
 )
 
@@ -24,6 +24,10 @@ const tabs = [
 const currentTasks = computed(() => data.value?.tasks?.[activeTab.value] ?? [])
 
 const activeTask = ref<any | null>(null)
+async function onTaskSaved() {
+  activeTask.value = null
+  await refresh()
+}
 </script>
 
 <template>
@@ -136,7 +140,7 @@ const activeTask = ref<any | null>(null)
 
     </div>
 
-    <TaskDetailModal :task="activeTask" @close="activeTask = null" />
+    <TaskDetailModal :task="activeTask" @close="activeTask = null" @saved="onTaskSaved" />
   </div>
 </template>
 
