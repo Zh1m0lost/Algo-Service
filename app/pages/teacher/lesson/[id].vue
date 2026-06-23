@@ -68,6 +68,14 @@ const tagTextColors: Record<string, string> = {
           <span class="lsn-hero__meta-item">🕐 {{ lesson.time }}</span>
           <span class="lsn-hero__meta-item">📅 {{ lesson.date }}</span>
         </div>
+        <NuxtLink
+          v-if="lesson.homework"
+          to="/teacher/homework"
+          class="lsn-hw-link"
+          style="align-self:flex-start;display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:9px 16px;border-radius:999px;background:rgba(255,255,255,0.2);color:#fff;font-size:13px;font-weight:600;text-decoration:none;"
+        >
+          <UiIcon name="document" :size="16" /> Домашнее задание: {{ lesson.homework.title }}
+        </NuxtLink>
       </div>
     </div>
 

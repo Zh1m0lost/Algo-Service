@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import calendarIcon from '~/assets/icons/PerpleCalendar.svg'
-
 definePageMeta({ layout: 'teacher' })
 
 const api = useApi()
@@ -110,8 +108,7 @@ function review(id: string) { router.push(`/teacher/review/${id}`) }
         <div class="hw-field">
           <label class="hw-field__label">Срок сдачи</label>
           <div class="hw-select-wrap hw-select-wrap--date">
-            <input v-model="form.deadline" class="hw-select hw-select--date" type="text" />
-            <img :src="calendarIcon" alt="" class="hw-select-wrap__cal" />
+            <input v-model="form.deadline" class="hw-select hw-select--date" type="date" />
           </div>
         </div>
       </div>

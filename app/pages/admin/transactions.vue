@@ -19,8 +19,13 @@ const tabs = computed(() => [
   { key: 'spent',  label: 'Списания',    count: items.value.filter(i => i.amount < 0).length },
 ])
 
+const router    = useRouter()
 const activeTab = ref('all')
 const search    = ref('')
+
+function openStudent(tx: any) {
+  if (tx.studentId) router.push(`/admin/students/${tx.studentId}`)
+}
 
 const filtered = computed(() => {
   let list = items.value
@@ -79,7 +84,13 @@ const totalSpent  = computed(() => Math.abs(items.value.filter(i => i.amount < 0
           </tr>
         </thead>
         <tbody>
-          <tr v-for="tx in filtered" :key="tx.id" class="al-table__row">
+          <tr
+            v-for="tx in filtered"
+            :key="tx.id"
+            class="al-table__row"
+            :class="{ 'al-table__row--link': tx.studentId }"
+            @click="openStudent(tx)"
+          >
             <td class="al-table__gray">{{ tx.date }}</td>
             <td class="al-table__name">{{ tx.student }}</td>
             <td>

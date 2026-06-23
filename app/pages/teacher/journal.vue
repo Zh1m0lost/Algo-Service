@@ -9,9 +9,9 @@ const { data, refresh } = await useAsyncData('teacher-journal',
   { watch: [selectedGroup] },
 )
 
-const groups      = computed<string[]>(() => data.value?.groups ?? [])
-const assignments = computed<string[]>(() => data.value?.assignments ?? [])
-const students    = computed<any[]>(() => data.value?.students ?? [])
+const groups   = computed<string[]>(() => data.value?.groups ?? [])
+const lessons  = computed<any[]>(() => data.value?.lessons ?? [])
+const students = computed<any[]>(() => data.value?.students ?? [])
 
 // Как только список групп пришёл — выбираем первую.
 watchEffect(() => {
@@ -27,18 +27,17 @@ function cellStyle(points: number | null) {
 
 // Форма начисления баллов
 const form = reactive({
-  student:    '',
-  assignment: '',
-  points:     10,
+  studentId: '',
+  lessonId:  '',
+  points:    10,
 })
 
 // При обновлении данных подставляем первого ученика и первое занятие.
 watch(data, (d) => {
   if (!d) return
-  form.student = d.students?.[0]?.name ?? ''
-  if (!d.assignments?.includes(form.assignment)) {
-    form.assignment = d.assignments?.[0] ?? ''
-  }
+  form.studentId = d.students?.[0]?.id ?? ''
+  const ids = (d.lessons ?? []).map((l: any) => l.id)
+  if (!ids.includes(form.lessonId)) form.lessonId = ids[0] ?? ''
 }, { immediate: true })
 
 const saving = ref(false)
@@ -50,10 +49,10 @@ async function submitGrade() {
     await api('/teacher/journal/grade', {
       method: 'POST',
       body: {
-        group:      selectedGroup.value,
-        student:    form.student,
-        assignment: form.assignment,
-        points:     form.points,
+        group:     selectedGroup.value,
+        studentId: form.studentId,
+        lessonId:  form.lessonId,
+        points:    form.points,
       },
     })
     await refresh()
@@ -63,9 +62,9 @@ async function submitGrade() {
 }
 
 function resetForm() {
-  form.student    = students.value[0]?.name ?? ''
-  form.assignment = assignments.value[0] ?? ''
-  form.points     = 10
+  form.studentId = students.value[0]?.id ?? ''
+  form.lessonId  = lessons.value[0]?.id ?? ''
+  form.points    = 10
 }
 
 // Дропдаун группы
@@ -77,10 +76,10 @@ function exportCsv() {
     return /[",;\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
   }
 
-  const header = ['Ученик', ...assignments.value, 'Итого баллов']
+  const header = ['Ученик', ...lessons.value.map((l: any) => l.title), 'Итого баллов']
   const rows = students.value.map((s: any) => [
     s.name,
-    ...assignments.value.map((_, i) => s.scores[i] ?? ''),
+    ...lessons.value.map((_: any, i: number) => s.scores[i] ?? ''),
     s.total,
   ])
 
@@ -132,7 +131,10 @@ function exportCsv() {
         <thead>
           <tr>
             <th class="jrn-table__th jrn-table__th--student">Ученик</th>
-            <th v-for="a in assignments" :key="a" class="jrn-table__th">{{ a }}</th>
+            <th v-for="l in lessons" :key="l.id" class="jrn-table__th">
+              <span class="jrn-table__th-title">{{ l.title }}</span>
+              <span v-if="l.date" class="jrn-table__th-date">{{ l.date }}</span>
+            </th>
             <th class="jrn-table__th">Итого баллов</th>
           </tr>
         </thead>
@@ -153,7 +155,7 @@ function exportCsv() {
             </td>
           </tr>
           <tr v-if="!students.length">
-            <td :colspan="assignments.length + 2" class="jrn-table__empty-row">
+            <td :colspan="lessons.length + 2" class="jrn-table__empty-row">
               В этой группе пока нет занятий или учеников
             </td>
           </tr>
@@ -169,15 +171,15 @@ function exportCsv() {
       <div class="jrn-form">
         <div class="jrn-form__field">
           <label class="jrn-form__field-label">Ученик</label>
-          <select v-model="form.student" class="jrn-form__select">
-            <option v-for="s in students" :key="s.name" :value="s.name">{{ s.name }}</option>
+          <select v-model="form.studentId" class="jrn-form__select">
+            <option v-for="s in students" :key="s.id" :value="s.id">{{ s.name }}</option>
           </select>
         </div>
 
         <div class="jrn-form__field jrn-form__field--wide">
           <label class="jrn-form__field-label">Занятие</label>
-          <select v-model="form.assignment" class="jrn-form__select">
-            <option v-for="a in assignments" :key="a" :value="a">{{ a }}</option>
+          <select v-model="form.lessonId" class="jrn-form__select">
+            <option v-for="l in lessons" :key="l.id" :value="l.id">{{ l.title }}{{ l.date ? ' · ' + l.date : '' }}</option>
           </select>
         </div>
 
@@ -322,6 +324,9 @@ function exportCsv() {
 
     &:last-child { border-right: none; }
   }
+
+  &__th-title { display: block; font-weight: 600; }
+  &__th-date { display: block; font-size: 11px; color: var(--c-text-gray); font-weight: 400; margin-top: 2px; }
 
   &__row {
     border-bottom: 1px solid #F0F0F0;

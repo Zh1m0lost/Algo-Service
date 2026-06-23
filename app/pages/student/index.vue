@@ -161,11 +161,17 @@ const progressPercent = computed(() => {
         <div class="card">
           <p class="card__section-label">БЛИЖАЙШИЕ ЗАДАНИЯ</p>
           <div class="tasks-list">
-            <div v-for="task in data.nearestTasks" :key="task.id" class="tasks-item">
+            <NuxtLink
+              v-for="task in data.nearestTasks"
+              :key="task.id"
+              :to="`/student/homework/${task.id}`"
+              class="tasks-item tasks-item--link"
+            >
               <span class="dot dot--red" />
               <span class="tasks-item__title">{{ task.title }}</span>
               <span class="tasks-item__date">{{ task.deadline }}</span>
-            </div>
+            </NuxtLink>
+            <p v-if="!data.nearestTasks.length" class="tasks-empty">Ближайших заданий нет</p>
           </div>
         </div>
 
@@ -626,6 +632,14 @@ const progressPercent = computed(() => {
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   background: var(--c-blue-stripe);
+  text-decoration: none;
+
+  &--link {
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    &:hover { background: var(--c-purple-light); }
+    &:active { transform: scale(0.99); }
+  }
 
   &__title {
     flex: 1;
@@ -637,6 +651,13 @@ const progressPercent = computed(() => {
     font-size: 13px;
     color: var(--c-text-gray);
   }
+}
+
+.tasks-empty {
+  font-size: 13px;
+  color: var(--c-text-gray);
+  text-align: center;
+  padding: 12px 0;
 }
 
 @media (max-width: 768px) {
