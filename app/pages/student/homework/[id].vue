@@ -57,20 +57,52 @@ const uploading    = ref(false)
 // Сбрасываем ошибку при открытии модалки.
 watch(showEditModal, (v) => { if (v) actionError.value = '' })
 
+const MAX_SIZE = 20 * 1024 * 1024 // 20 МБ
+const ALLOWED = ['.zip', '.rar', '.7z', '.pdf', '.doc', '.docx', '.txt', '.js', '.ts', '.html', '.css', '.py', '.png', '.jpg', '.jpeg', '.gif', '.ipynb', '.json']
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} Б`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} КБ`
+  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`
+}
+
+// Проверка и принятие файла при добавлении (drag/выбор) — с понятным выводом ошибок.
+function setFile(file: File | null | undefined) {
+  if (!file) return
+  const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
+  if (file.size > MAX_SIZE) {
+    actionError.value = `Файл «${file.name}» слишком большой — ${formatSize(file.size)}. Максимум 20 МБ.`
+    selectedFile.value = null
+    return
+  }
+  if (file.size === 0) {
+    actionError.value = `Файл «${file.name}» пустой.`
+    selectedFile.value = null
+    return
+  }
+  if (!ALLOWED.includes(ext)) {
+    actionError.value = `Тип файла «${ext}» не поддерживается. Допустимы: ${ALLOWED.join(', ')}.`
+    selectedFile.value = null
+    return
+  }
+  actionError.value = ''
+  selectedFile.value = file
+}
+
 function openFilePicker() {
   fileInput.value?.click()
 }
 
 function onDrop(e: DragEvent) {
   dragOver.value = false
-  const file = e.dataTransfer?.files[0]
-  if (file) selectedFile.value = file
+  const files = e.dataTransfer?.files
+  if (files && files.length > 1) { actionError.value = 'Можно прикрепить только один файл за раз.'; return }
+  setFile(files?.[0])
 }
 
 function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (file) selectedFile.value = file
+  setFile(input.files?.[0])
   input.value = '' // чтобы можно было выбрать тот же файл повторно
 }
 
@@ -290,7 +322,7 @@ async function deleteComment(commentId: string) {
             >
               <input ref="fileInput" type="file" class="hw-modal__file-input" @change="onFileChange" />
               <span class="hw-modal__drop-arrow">↓</span>
-              <span v-if="selectedFile" class="hw-modal__drop-text">{{ selectedFile.name }}</span>
+              <span v-if="selectedFile" class="hw-modal__drop-text">{{ selectedFile.name }} · {{ formatSize(selectedFile.size) }}</span>
               <span v-else class="hw-modal__drop-text">Нажмите или перетащите файл сюда.</span>
             </div>
           </div>
