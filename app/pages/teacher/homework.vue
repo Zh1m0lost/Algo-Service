@@ -13,7 +13,6 @@ const students      = computed<string[]>(() => data.value?.students ?? [])
 const groups        = computed<string[]>(() => data.value?.groups ?? [])
 const pendingReview = computed<any[]>(() => data.value?.pendingReview ?? [])
 
-const pointsOptions = ['60', '80', '100', '120', '150']
 const attemptsOptions = ['Неограниченно', '1', '2', '3', '5']
 const visibilityOptions = ['Сразу', 'После дедлайна', 'Вручную']
 
@@ -22,7 +21,7 @@ const form = reactive({
   student: 'Всем',
   group: '',
   deadline: '',
-  points: '100',
+  points: 100,
   attempts: 'Неограниченно',
   visibility: 'Сразу',
   comment: ''
@@ -46,19 +45,20 @@ function showToast(text: string) {
 
 async function submit() {
   try {
-    await api('/teacher/homework/assign', {
+    const res = await api<any>('/teacher/homework/assign', {
       method: 'POST',
       body: {
         task: form.task,
+        student: form.student,
         group: form.group,
         deadline: form.deadline,
         points: Number(form.points),
         comment: form.comment,
       },
     })
-    showToast('Задание выдано')
-  } catch {
-    showToast('Не удалось выдать задание')
+    showToast(res?.message || 'Задание выдано')
+  } catch (e: any) {
+    showToast(e?.data?.message || 'Не удалось выдать задание')
   }
 }
 
@@ -118,10 +118,14 @@ function review(id: string) { router.push(`/teacher/review/${id}`) }
         <div class="hw-field">
           <label class="hw-field__label">Баллы</label>
           <div class="hw-select-wrap">
-            <select v-model="form.points" class="hw-select">
-              <option v-for="p in pointsOptions" :key="p" :value="p">{{ p }}</option>
-            </select>
-            <span class="hw-select-wrap__arrow">&#8964;</span>
+            <input
+              v-model.number="form.points"
+              type="number"
+              min="0"
+              max="1000"
+              class="hw-select hw-select--num"
+              placeholder="Введите баллы, напр. 100"
+            />
           </div>
         </div>
         <div class="hw-field">
@@ -272,6 +276,11 @@ function review(id: string) { router.push(`/teacher/review/${id}`) }
 
   &--date {
     padding-right: 42px;
+    cursor: text;
+  }
+
+  &--num {
+    padding-right: 14px;
     cursor: text;
   }
 }
